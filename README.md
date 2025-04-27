@@ -236,8 +236,13 @@ Este proyecto forma parte de un Trabajo de Fin de Grado (TFG) y está sujeto a l
 ---
 
 <div align="center">
-  <b>Desarrollado con ❤️ por Francisco Villa y Gabriel Saiz</b><br>
-  <a href="mailto:gsaiz.bajo@gmail.com">gsaiz.bajo@gmail.com</a> • 
-  <a href="https://linkedin.com/in/tuusuario">LinkedIn</a> • 
-  <a href="https://github.com/tuusuario">GitHub</a>
+  <b>Desarrollado con ❤️ por:</b><br>
+  <b>Francisco Villa</b>:
+  <a href="https://github.com/Franvilla03">GitHub</a> •
+  <a href="https://www.linkedin.com/in/francisco-villa-cabero-640734239/">LinkedIn</a>
+  <br>
+  <b>Gabriel Saiz</b>:
+  <a href="mailto:gsaiz.bajo@gmail.com">Email</a> •
+  <a href="https://github.com/GabriLPDA22">GitHub</a> •
+  <a href="https://www.linkedin.com/in/gabriel-saiz-de-la-maza-bajo-140370184/">LinkedIn</a>
 </div>
