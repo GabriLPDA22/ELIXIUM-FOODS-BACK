@@ -20,6 +20,7 @@ namespace UberEatsBackend.Utils
                 .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses));
 
             CreateMap<RegisterRequestDto, User>();
+            CreateMap<CreateUserDto, User>();
 
             // Address Mappings
             CreateMap<Address, AddressDto>();
