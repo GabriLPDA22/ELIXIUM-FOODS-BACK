@@ -1,8 +1,10 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 using UberEatsBackend.DTOs.User;
 using UberEatsBackend.Models;
@@ -115,6 +117,67 @@ namespace UberEatsBackend.Controllers
       return NoContent();
     }
 
+    [HttpPut("profile")]
+    public async Task<ActionResult<UserDto>> UpdateProfile(UpdateProfileDto updateProfileDto)
+    {
+      // Obtener ID del usuario actual
+      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+      var user = await _userRepository.GetByIdAsync(userId);
+
+      if (user == null)
+        return NotFound(new { message = "Usuario no encontrado" });
+
+      // Actualizar campos básicos
+      user.FirstName = updateProfileDto.FirstName;
+      user.LastName = updateProfileDto.LastName;
+      user.PhoneNumber = updateProfileDto.PhoneNumber;
+
+      // Campos opcionales
+      if (!string.IsNullOrEmpty(updateProfileDto.Birthdate))
+      {
+        if (DateTime.TryParse(updateProfileDto.Birthdate, out DateTime birthdate))
+        {
+          user.Birthdate = birthdate;
+        }
+      }
+
+      user.Bio = updateProfileDto.Bio;
+      user.PhotoURL = updateProfileDto.PhotoURL;
+
+      // Preferencias alimentarias (guardar como JSON)
+      if (updateProfileDto.DietaryPreferences != null && updateProfileDto.DietaryPreferences.Count > 0)
+      {
+        user.DietaryPreferencesJson = JsonSerializer.Serialize(updateProfileDto.DietaryPreferences);
+      }
+      else
+      {
+        user.DietaryPreferencesJson = null;
+      }
+
+      user.UpdatedAt = DateTime.UtcNow;
+      await _userRepository.UpdateAsync(user);
+
+      // Convertir a DTO y devolver
+      var userDto = _mapper.Map<UserDto>(user);
+
+      // Agregar campos adicionales si es necesario
+      if (user.Birthdate.HasValue)
+      {
+        userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+      }
+
+      userDto.Bio = user.Bio;
+      userDto.PhotoURL = user.PhotoURL;
+
+      // Deserializar preferencias alimentarias
+      if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+      {
+        userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+      }
+
+      return Ok(userDto);
+    }
+
     [HttpPut("{id}/password")]
     public async Task<IActionResult> UpdatePassword(int id, UpdatePasswordDto updatePasswordDto)
     {
@@ -136,6 +199,29 @@ namespace UberEatsBackend.Controllers
 
       // Actualizar contraseña
       user.PasswordHash = BC.HashPassword(updatePasswordDto.NewPassword);
+      user.UpdatedAt = System.DateTime.UtcNow;
+      await _userRepository.UpdateAsync(user);
+
+      return NoContent();
+    }
+
+    [HttpPut("password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordDto changePasswordDto)
+    {
+      // Obtener ID del usuario actual
+      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+      var user = await _userRepository.GetByIdAsync(userId);
+
+      if (user == null)
+        return NotFound(new { message = "Usuario no encontrado" });
+
+      // Verificar contraseña actual
+      bool isCurrentPasswordValid = BC.Verify(changePasswordDto.CurrentPassword, user.PasswordHash);
+      if (!isCurrentPasswordValid)
+        return BadRequest(new { message = "La contraseña actual es incorrecta" });
+
+      // Actualizar contraseña
+      user.PasswordHash = BC.HashPassword(changePasswordDto.NewPassword);
       user.UpdatedAt = System.DateTime.UtcNow;
       await _userRepository.UpdateAsync(user);
 
@@ -173,7 +259,24 @@ namespace UberEatsBackend.Controllers
       if (user == null)
         return NotFound();
 
-      return Ok(_mapper.Map<UserDto>(user));
+      var userDto = _mapper.Map<UserDto>(user);
+
+      // Agregar campos adicionales
+      if (user.Birthdate.HasValue)
+      {
+        userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+      }
+
+      userDto.Bio = user.Bio;
+      userDto.PhotoURL = user.PhotoURL;
+
+      // Deserializar preferencias alimentarias
+      if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+      {
+        userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+      }
+
+      return Ok(userDto);
     }
   }
 }

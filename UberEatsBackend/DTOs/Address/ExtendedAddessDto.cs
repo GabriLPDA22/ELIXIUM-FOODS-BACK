@@ -1,8 +1,6 @@
-using System.Collections.Generic;
-
-namespace UberEatsBackend.Models
+namespace UberEatsBackend.DTOs.Address
 {
-  public class Address
+  public class ExtendedAddressDto
   {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -17,13 +15,5 @@ namespace UberEatsBackend.Models
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public bool IsDefault { get; set; }
-
-    // Relaciones
-    public int UserId { get; set; }
-    public User User { get; set; } = null!;
-
-    // Navigation properties
-    public List<Order> Orders { get; set; } = new List<Order>();
-    public Restaurant? Restaurant { get; set; }
   }
 }

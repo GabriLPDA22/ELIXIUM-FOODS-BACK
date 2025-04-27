@@ -27,6 +27,7 @@ namespace UberEatsBackend.Data
 
       // Aplicar configuraciones
       modelBuilder.ApplyConfiguration(new UserConfiguration());
+      modelBuilder.ApplyConfiguration(new AddressConfiguration());
 
       // Configuración para Order y User (relación con DeliveryPerson)
       modelBuilder.Entity<Order>()

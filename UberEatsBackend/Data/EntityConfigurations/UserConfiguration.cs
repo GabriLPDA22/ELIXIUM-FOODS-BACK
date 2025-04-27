@@ -42,6 +42,20 @@ namespace UberEatsBackend.Data.EntityConfigurations
       builder.Property(u => u.UpdatedAt)
           .IsRequired();
 
+      // Nuevos campos para el perfil
+      builder.Property(u => u.Birthdate)
+          .IsRequired(false);
+
+      builder.Property(u => u.Bio)
+          .IsRequired(false);
+
+      builder.Property(u => u.DietaryPreferencesJson)
+          .IsRequired(false);
+
+      builder.Property(u => u.PhotoURL)
+          .IsRequired(false)
+          .HasMaxLength(255);
+
       // Relaciones
       builder.HasMany(u => u.Addresses)
           .WithOne(a => a.User)
