@@ -1,315 +1,315 @@
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using UberEatsBackend.Data;
-using UberEatsBackend.DTOs.Dashboard;
-using UberEatsBackend.Models;
+// using Microsoft.EntityFrameworkCore;
+// using System;
+// using System.Collections.Generic;
+// using System.Linq;
+// using System.Threading.Tasks;
+// using UberEatsBackend.Data;
+// using UberEatsBackend.DTOs.Dashboard;
+// using UberEatsBackend.Models;
 
-namespace UberEatsBackend.Services
-{
-    public class DashboardService
-    {
-        private readonly ApplicationDbContext _context;
+// namespace UberEatsBackend.Services
+// {
+//   public class DashboardService
+//   {
+//     private readonly ApplicationDbContext _context;
 
-        public DashboardService(ApplicationDbContext context)
-        {
-            _context = context;
-        }
+//     public DashboardService(ApplicationDbContext context)
+//     {
+//       _context = context;
+//     }
 
-        public async Task<DashboardStatsDto> GetDashboardStatsAsync(DashboardFilterDto filter)
-        {
-            var query = _context.Orders.AsQueryable();
+//     public async Task<DashboardStatsDto> GetDashboardStatsAsync(DashboardFilterDto filter)
+//     {
+//       var query = _context.Orders.AsQueryable();
 
-            // Aplicar filtros si se especifican
-            if (filter.StartDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
+//       // Aplicar filtros si se especifican
+//       if (filter.StartDate.HasValue)
+//         query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
 
-            if (filter.EndDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
+//       if (filter.EndDate.HasValue)
+//         query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
 
-            if (filter.RestaurantId.HasValue)
-                query = query.Where(o => o.RestaurantId == filter.RestaurantId.Value);
+//       if (filter.RestaurantId.HasValue)
+//         query = query.Where(o => o.RestaurantId == filter.RestaurantId.Value);
 
-            if (!string.IsNullOrEmpty(filter.OrderStatus))
-                query = query.Where(o => o.Status == filter.OrderStatus);
+//       if (!string.IsNullOrEmpty(filter.OrderStatus))
+//         query = query.Where(o => o.Status == filter.OrderStatus);
 
-            // Calcular estadísticas generales
-            var totalOrders = await query.CountAsync();
-            var completedOrders = await query.Where(o => o.Status == \"Delivered\").CountAsync();
-            var cancelledOrders = await query.Where(o => o.Status == \"Cancelled\").CountAsync();
-            var totalRevenue = await query.Where(o => o.Status != \"Cancelled\").SumAsync(o => o.Total);
-            
-            var totalUsers = await _context.Users.CountAsync();
-            var totalRestaurants = await _context.Restaurants.CountAsync();
+//       // Calcular estadísticas generales
+//       var totalOrders = await query.CountAsync();
+//       var completedOrders = await query.Where(o => o.Status == "Delivered").CountAsync();
+//       var cancelledOrders = await query.Where(o => o.Status == "Cancelled").CountAsync();
+//       var totalRevenue = await query.Where(o => o.Status != "Cancelled").SumAsync(o => o.Total);
 
-            // Estadísticas de hoy
-            var today = DateTime.Today;
-            var newOrdersToday = await query.Where(o => o.CreatedAt.Date == today).CountAsync();
-            var revenueToday = await query.Where(o => o.CreatedAt.Date == today && o.Status != \"Cancelled\").SumAsync(o => o.Total);
+//       var totalUsers = await _context.Users.CountAsync();
+//       var totalRestaurants = await _context.Restaurants.CountAsync();
 
-            // Obtener top 5 restaurantes
-            var topRestaurants = await GetTopRestaurantsAsync(filter, 5);
+//       // Estadísticas de hoy
+//       var today = DateTime.Today;
+//       var newOrdersToday = await query.Where(o => o.CreatedAt.Date == today).CountAsync();
+//       var revenueToday = await query.Where(o => o.CreatedAt.Date == today && o.Status != "Cancelled").SumAsync(o => o.Total);
 
-            // Obtener top 5 productos
-            var topProducts = await GetTopProductsAsync(filter, 5);
+//       // Obtener top 5 restaurantes
+//       var topRestaurants = await GetTopRestaurantsAsync(filter, 5);
 
-            // Obtener ingresos por fecha
-            var revenueByDate = await GetRevenueByDateAsync(filter);
+//       // Obtener top 5 productos
+//       var topProducts = await GetTopProductsAsync(filter, 5);
 
-            // Obtener pedidos por estado
-            var ordersByStatus = await GetOrdersByStatusAsync(filter);
+//       // Obtener ingresos por fecha
+//       var revenueByDate = await GetRevenueByDateAsync(filter);
 
-            return new DashboardStatsDto
-            {
-                TotalOrders = totalOrders,
-                CompletedOrders = completedOrders,
-                CancelledOrders = cancelledOrders,
-                TotalRevenue = totalRevenue,
-                TotalUsers = totalUsers,
-                TotalRestaurants = totalRestaurants,
-                NewOrdersToday = newOrdersToday,
-                RevenueToday = revenueToday,
-                TopRestaurants = topRestaurants,
-                TopProducts = topProducts,
-                RevenueByDate = revenueByDate,
-                OrdersByStatus = ordersByStatus
-            };
-        }
+//       // Obtener pedidos por estado
+//       var ordersByStatus = await GetOrdersByStatusAsync(filter);
 
-        public async Task<List<TopRestaurantDto>> GetTopRestaurantsAsync(DashboardFilterDto filter, int count = 10)
-        {
-            var query = _context.Orders.AsQueryable();
+//       return new DashboardStatsDto
+//       {
+//         TotalOrders = totalOrders,
+//         CompletedOrders = completedOrders,
+//         CancelledOrders = cancelledOrders,
+//         TotalRevenue = totalRevenue,
+//         TotalUsers = totalUsers,
+//         TotalRestaurants = totalRestaurants,
+//         NewOrdersToday = newOrdersToday,
+//         RevenueToday = revenueToday,
+//         TopRestaurants = topRestaurants,
+//         TopProducts = topProducts,
+//         RevenueByDate = revenueByDate,
+//         OrdersByStatus = ordersByStatus
+//       };
+//     }
 
-            // Aplicar filtros
-            if (filter.StartDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
+//     public async Task<List<TopRestaurantDto>> GetTopRestaurantsAsync(DashboardFilterDto filter, int count = 10)
+//     {
+//       var query = _context.Orders.AsQueryable();
 
-            if (filter.EndDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
+//       // Aplicar filtros
+//       if (filter.StartDate.HasValue)
+//         query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.OrderStatus))
-                query = query.Where(o => o.Status == filter.OrderStatus);
+//       if (filter.EndDate.HasValue)
+//         query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
 
-            var topRestaurants = await query
-                .Where(o => o.Status != \"Cancelled\")
-                .GroupBy(o => new { o.RestaurantId, o.Restaurant.Name, o.Restaurant.LogoUrl })
-                .Select(g => new TopRestaurantDto
-                {
-                    RestaurantId = g.Key.RestaurantId,
-                    RestaurantName = g.Key.Name,
-                    LogoUrl = g.Key.LogoUrl,
-                    OrderCount = g.Count(),
-                    TotalRevenue = g.Sum(o => o.Total)
-                })
-                .OrderByDescending(r => r.TotalRevenue)
-                .Take(count)
-                .ToListAsync();
+//       if (!string.IsNullOrEmpty(filter.OrderStatus))
+//         query = query.Where(o => o.Status == filter.OrderStatus);
 
-            return topRestaurants;
-        }
+//       var topRestaurants = await query
+//           .Where(o => o.Status != "Cancelled")
+//           .GroupBy(o => new { o.RestaurantId, o.Restaurant.Name, o.Restaurant.LogoUrl })
+//           .Select(g => new TopRestaurantDto
+//           {
+//             RestaurantId = g.Key.RestaurantId,
+//             RestaurantName = g.Key.Name,
+//             LogoUrl = g.Key.LogoUrl,
+//             OrderCount = g.Count(),
+//             TotalRevenue = g.Sum(o => o.Total)
+//           })
+//           .OrderByDescending(r => r.TotalRevenue)
+//           .Take(count)
+//           .ToListAsync();
 
-        public async Task<List<TopProductDto>> GetTopProductsAsync(DashboardFilterDto filter, int count = 10)
-        {
-            var query = _context.OrderItems.AsQueryable();
+//       return topRestaurants;
+//     }
 
-            if (filter.StartDate.HasValue)
-                query = query.Where(oi => oi.Order.CreatedAt >= filter.StartDate.Value);
+//     public async Task<List<TopProductDto>> GetTopProductsAsync(DashboardFilterDto filter, int count = 10)
+//     {
+//       var query = _context.OrderItems.AsQueryable();
 
-            if (filter.EndDate.HasValue)
-                query = query.Where(oi => oi.Order.CreatedAt <= filter.EndDate.Value);
+//       if (filter.StartDate.HasValue)
+//         query = query.Where(oi => oi.Order.CreatedAt >= filter.StartDate.Value);
 
-            if (filter.RestaurantId.HasValue)
-                query = query.Where(oi => oi.Order.RestaurantId == filter.RestaurantId.Value);
+//       if (filter.EndDate.HasValue)
+//         query = query.Where(oi => oi.Order.CreatedAt <= filter.EndDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.OrderStatus))
-                query = query.Where(oi => oi.Order.Status == filter.OrderStatus);
+//       if (filter.RestaurantId.HasValue)
+//         query = query.Where(oi => oi.Order.RestaurantId == filter.RestaurantId.Value);
 
-            var topProducts = await query
-                .Where(oi => oi.Order.Status != \"Cancelled\")
-                .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.Restaurant.Name })
-                .Select(g => new TopProductDto
-                {
-                    ProductId = g.Key.ProductId,
-                    ProductName = g.Key.Name,
-                    RestaurantName = g.Key.Name,
-                    OrderCount = g.Count(),
-                    TotalRevenue = g.Sum(oi => oi.Quantity * oi.UnitPrice)
-                })
-                .OrderByDescending(p => p.OrderCount)
-                .Take(count)
-                .ToListAsync();
+//       if (!string.IsNullOrEmpty(filter.OrderStatus))
+//         query = query.Where(oi => oi.Order.Status == filter.OrderStatus);
 
-            return topProducts;
-        }
+//       var topProducts = await query
+//           .Where(oi => oi.Order.Status != "Cancelled")
+//           .GroupBy(oi => new { oi.ProductId, oi.Product.Name, oi.Product.Restaurant.Name })
+//           .Select(g => new TopProductDto
+//           {
+//             ProductId = g.Key.ProductId,
+//             ProductName = g.Key.Name,
+//             RestaurantName = g.Key.Name,
+//             OrderCount = g.Count(),
+//             TotalRevenue = g.Sum(oi => oi.Quantity * oi.UnitPrice)
+//           })
+//           .OrderByDescending(p => p.OrderCount)
+//           .Take(count)
+//           .ToListAsync();
 
-        public async Task<List<RevenueByDateDto>> GetRevenueByDateAsync(DashboardFilterDto filter)
-        {
-            var query = _context.Orders.AsQueryable();
+//       return topProducts;
+//     }
 
-            if (filter.StartDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
+//     public async Task<List<RevenueByDateDto>> GetRevenueByDateAsync(DashboardFilterDto filter)
+//     {
+//       var query = _context.Orders.AsQueryable();
 
-            if (filter.EndDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
+//       if (filter.StartDate.HasValue)
+//         query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
 
-            if (filter.RestaurantId.HasValue)
-                query = query.Where(o => o.RestaurantId == filter.RestaurantId.Value);
+//       if (filter.EndDate.HasValue)
+//         query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
 
-            string dateFormat;
-            switch (filter.TimeInterval?.ToLower())
-            {
-                case \"weekly\":
-                    dateFormat = \"yyyy-'W'ww\"; // Formato para semana
-                    break;
-                case \"monthly\":
-                    dateFormat = \"yyyy-MM\"; // Formato para mes
-                    break;
-                default:
-                    dateFormat = \"yyyy-MM-dd\"; // Formato para día
-                    break;
-            }
+//       if (filter.RestaurantId.HasValue)
+//         query = query.Where(o => o.RestaurantId == filter.RestaurantId.Value);
 
-            var revenueByDate = await query
-                .Where(o => o.Status != \"Cancelled\")
-                .GroupBy(o => o.CreatedAt.ToString(dateFormat))
-                .Select(g => new RevenueByDateDto
-                {
-                    Date = g.Key,
-                    TotalAmount = g.Sum(o => o.Total),
-                    OrderCount = g.Count()
-                })
-                .OrderBy(r => r.Date)
-                .ToListAsync();
+//       string dateFormat;
+//       switch (filter.TimeInterval?.ToLower())
+//       {
+//         case "weekly":
+//           dateFormat = "yyyy-'W'ww"; // Formato para semana
+//           break;
+//         case "monthly":
+//           dateFormat = "yyyy-MM"; // Formato para mes
+//           break;
+//         default:
+//           dateFormat = "yyyy-MM-dd"; // Formato para día
+//           break;
+//       }
 
-            return revenueByDate;
-        }
+//       var revenueByDate = await query
+//           .Where(o => o.Status != "Cancelled")
+//           .GroupBy(o => o.CreatedAt.ToString(dateFormat))
+//           .Select(g => new RevenueByDateDto
+//           {
+//             Date = g.Key,
+//             TotalAmount = g.Sum(o => o.Total),
+//             OrderCount = g.Count()
+//           })
+//           .OrderBy(r => r.Date)
+//           .ToListAsync();
 
-        public async Task<List<OrdersByStatusDto>> GetOrdersByStatusAsync(DashboardFilterDto filter)
-        {
-            var query = _context.Orders.AsQueryable();
+//       return revenueByDate;
+//     }
 
-            if (filter.StartDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
+//     public async Task<List<OrdersByStatusDto>> GetOrdersByStatusAsync(DashboardFilterDto filter)
+//     {
+//       var query = _context.Orders.AsQueryable();
 
-            if (filter.EndDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
+//       if (filter.StartDate.HasValue)
+//         query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
 
-            if (filter.RestaurantId.HasValue)
-                query = query.Where(o => o.RestaurantId == filter.RestaurantId.Value);
+//       if (filter.EndDate.HasValue)
+//         query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
 
-            var ordersByStatus = await query
-                .GroupBy(o => o.Status)
-                .Select(g => new OrdersByStatusDto
-                {
-                    Status = g.Key,
-                    Count = g.Count()
-                })
-                .ToListAsync();
+//       if (filter.RestaurantId.HasValue)
+//         query = query.Where(o => o.RestaurantId == filter.RestaurantId.Value);
 
-            return ordersByStatus;
-        }
+//       var ordersByStatus = await query
+//           .GroupBy(o => o.Status)
+//           .Select(g => new OrdersByStatusDto
+//           {
+//             Status = g.Key,
+//             Count = g.Count()
+//           })
+//           .ToListAsync();
 
-        public async Task<RestaurantStatsDto> GetRestaurantStatsAsync(DashboardFilterDto filter)
-        {
-            if (!filter.RestaurantId.HasValue)
-                throw new ArgumentException(\"Restaurant ID is required\");
+//       return ordersByStatus;
+//     }
 
-            var restaurant = await _context.Restaurants
-                .FirstOrDefaultAsync(r => r.Id == filter.RestaurantId.Value);
+//     public async Task<RestaurantStatsDto> GetRestaurantStatsAsync(DashboardFilterDto filter)
+//     {
+//       if (!filter.RestaurantId.HasValue)
+//         throw new ArgumentException("Restaurant ID is required");
 
-            if (restaurant == null)
-                return null;
+//       var restaurant = await _context.Restaurants
+//           .FirstOrDefaultAsync(r => r.Id == filter.RestaurantId.Value);
 
-            var query = _context.Orders.Where(o => o.RestaurantId == filter.RestaurantId.Value);
+//       if (restaurant == null)
+//         return null;
 
-            if (filter.StartDate.HasValue)
-                query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
+//       var query = _context.Orders.Where(o => o.RestaurantId == filter.RestaurantId.Value);
 
-            if (filter.EndDate.HasValue)
-                query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
+//       if (filter.StartDate.HasValue)
+//         query = query.Where(o => o.CreatedAt >= filter.StartDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.OrderStatus))
-                query = query.Where(o => o.Status == filter.OrderStatus);
+//       if (filter.EndDate.HasValue)
+//         query = query.Where(o => o.CreatedAt <= filter.EndDate.Value);
 
-            // Estadísticas generales
-            var totalOrders = await query.CountAsync();
-            var completedOrders = await query.Where(o => o.Status == \"Delivered\").CountAsync();
-            var cancelledOrders = await query.Where(o => o.Status == \"Cancelled\").CountAsync();
-            var totalRevenue = await query.Where(o => o.Status != \"Cancelled\").SumAsync(o => o.Total);
+//       if (!string.IsNullOrEmpty(filter.OrderStatus))
+//         query = query.Where(o => o.Status == filter.OrderStatus);
 
-            // Estadísticas de hoy
-            var today = DateTime.Today;
-            var newOrdersToday = await query.Where(o => o.CreatedAt.Date == today).CountAsync();
-            var revenueToday = await query.Where(o => o.CreatedAt.Date == today && o.Status != \"Cancelled\").SumAsync(o => o.Total);
+//       // Estadísticas generales
+//       var totalOrders = await query.CountAsync();
+//       var completedOrders = await query.Where(o => o.Status == "Delivered").CountAsync();
+//       var cancelledOrders = await query.Where(o => o.Status == "Cancelled").CountAsync();
+//       var totalRevenue = await query.Where(o => o.Status != "Cancelled").SumAsync(o => o.Total);
 
-            // Número total de clientes únicos
-            var totalCustomers = await query
-                .Select(o => o.UserId)
-                .Distinct()
-                .CountAsync();
+//       // Estadísticas de hoy
+//       var today = DateTime.Today;
+//       var newOrdersToday = await query.Where(o => o.CreatedAt.Date == today).CountAsync();
+//       var revenueToday = await query.Where(o => o.CreatedAt.Date == today && o.Status != "Cancelled").SumAsync(o => o.Total);
 
-            // Rating promedio
-            var averageRating = restaurant.AverageRating;
+//       // Número total de clientes únicos
+//       var totalCustomers = await query
+//           .Select(o => o.UserId)
+//           .Distinct()
+//           .CountAsync();
 
-            // Top 5 productos
-            var topProducts = await GetTopProductsAsync(filter, 5);
+//       // Rating promedio
+//       var averageRating = restaurant.AverageRating;
 
-            // Ingresos por fecha
-            var revenueByDate = await GetRevenueByDateAsync(filter);
+//       // Top 5 productos
+//       var topProducts = await GetTopProductsAsync(filter, 5);
 
-            // Pedidos por hora
-            var ordersByHour = await query
-                .GroupBy(o => o.CreatedAt.Hour)
-                .Select(g => new OrdersByHourDto
-                {
-                    Hour = g.Key,
-                    OrderCount = g.Count()
-                })
-                .OrderBy(x => x.Hour)
-                .ToListAsync();
+//       // Ingresos por fecha
+//       var revenueByDate = await GetRevenueByDateAsync(filter);
 
-            // Distribución de pedidos (por tipo de producto o categoría)
-            var orderDistribution = await _context.OrderItems
-                .Where(oi => oi.Order.RestaurantId == filter.RestaurantId.Value)
-                .Where(oi => oi.Order.Status != \"Cancelled\")
-                .GroupBy(oi => oi.Product.Category.Name)
-                .Select(g => new OrderDistributionDto
-                {
-                    Category = g.Key,
-                    Amount = g.Sum(oi => oi.Quantity * oi.UnitPrice),
-                    Percentage = 0 // Se calculará a continuación
-                })
-                .ToListAsync();
+//       // Pedidos por hora
+//       var ordersByHour = await query
+//           .GroupBy(o => o.CreatedAt.Hour)
+//           .Select(g => new OrdersByHourDto
+//           {
+//             Hour = g.Key,
+//             OrderCount = g.Count()
+//           })
+//           .OrderBy(x => x.Hour)
+//           .ToListAsync();
 
-            // Calcular porcentajes para la distribución
-            if (orderDistribution.Any())
-            {
-                var total = orderDistribution.Sum(od => od.Amount);
-                foreach (var od in orderDistribution)
-                {
-                    od.Percentage = Math.Round((od.Amount / total) * 100, 2);
-                }
-            }
+//       // Distribución de pedidos (por tipo de producto o categoría)
+//       var orderDistribution = await _context.OrderItems
+//           .Where(oi => oi.Order.RestaurantId == filter.RestaurantId.Value)
+//           .Where(oi => oi.Order.Status != "Cancelled")
+//           .GroupBy(oi => oi.Product.Category.Name)
+//           .Select(g => new OrderDistributionDto
+//           {
+//             Category = g.Key,
+//             Amount = g.Sum(oi => oi.Quantity * oi.UnitPrice),
+//             Percentage = 0 // Se calculará a continuación
+//           })
+//           .ToListAsync();
 
-            return new RestaurantStatsDto
-            {
-                RestaurantId = restaurant.Id,
-                RestaurantName = restaurant.Name,
-                TotalOrders = totalOrders,
-                CompletedOrders = completedOrders,
-                CancelledOrders = cancelledOrders,
-                TotalRevenue = totalRevenue,
-                AverageRating = averageRating,
-                NewOrdersToday = newOrdersToday,
-                RevenueToday = revenueToday,
-                TotalCustomers = totalCustomers,
-                TopProducts = topProducts,
-                RevenueByDate = revenueByDate,
-                OrdersByHour = ordersByHour,
-                OrderDistribution = orderDistribution
-            };
-        }
-    }
-}
+//       // Calcular porcentajes para la distribución
+//       if (orderDistribution.Any())
+//       {
+//         var total = orderDistribution.Sum(od => od.Amount);
+//         foreach (var od in orderDistribution)
+//         {
+//           od.Percentage = Math.Round((od.Amount / total) * 100, 2);
+//         }
+//       }
+
+//       return new RestaurantStatsDto
+//       {
+//         RestaurantId = restaurant.Id,
+//         RestaurantName = restaurant.Name,
+//         TotalOrders = totalOrders,
+//         CompletedOrders = completedOrders,
+//         CancelledOrders = cancelledOrders,
+//         TotalRevenue = totalRevenue,
+//         AverageRating = averageRating,
+//         NewOrdersToday = newOrdersToday,
+//         RevenueToday = revenueToday,
+//         TotalCustomers = totalCustomers,
+//         TopProducts = topProducts,
+//         RevenueByDate = revenueByDate,
+//         OrdersByHour = ordersByHour,
+//         OrderDistribution = orderDistribution
+//       };
+//     }
+//   }
+// }
