@@ -11,9 +11,34 @@ namespace UberEatsBackend.Models
     public decimal Tax { get; set; }
     public decimal Total { get; set; }
     public string Status { get; set; } = "Pending"; // Pending, Accepted, Preparing, ReadyForPickup, OnTheWay, Delivered, Cancelled
-    public DateTime EstimatedDeliveryTime { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+
+    private DateTime _estimatedDeliveryTime;
+    private DateTime _createdAt;
+    private DateTime _updatedAt;
+
+    public DateTime EstimatedDeliveryTime
+    {
+        get => _estimatedDeliveryTime;
+        set => _estimatedDeliveryTime = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
+
+    public DateTime CreatedAt
+    {
+        get => _createdAt;
+        set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
+
+    public DateTime UpdatedAt
+    {
+        get => _updatedAt;
+        set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
 
     // Relaciones
     public int UserId { get; set; }

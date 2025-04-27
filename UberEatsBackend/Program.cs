@@ -9,6 +9,9 @@ using UberEatsBackend.Repositories;
 using UberEatsBackend.Services;
 using UberEatsBackend.Utils;
 
+// Configurar comportamiento de timestamp para PostgreSQL
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuración de AppSettings

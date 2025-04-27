@@ -12,11 +12,36 @@ namespace UberEatsBackend.Models
     public string LastName { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
     public string Role { get; set; } = "Customer"; // Admin, Customer, Restaurant, DeliveryPerson
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+
+    private DateTime _createdAt;
+    private DateTime _updatedAt;
+    private DateTime? _birthdate;
+
+    public DateTime CreatedAt
+    {
+        get => _createdAt;
+        set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
+
+    public DateTime UpdatedAt
+    {
+        get => _updatedAt;
+        set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
+
+    public DateTime? Birthdate
+    {
+        get => _birthdate;
+        set => _birthdate = value?.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) :
+            value?.ToUniversalTime();
+    }
 
     // Additional profile fields
-    public DateTime? Birthdate { get; set; }
     public string? Bio { get; set; }
     public string? DietaryPreferencesJson { get; set; } // Stored as JSON string
     public string? PhotoURL { get; set; }

@@ -14,8 +14,25 @@ namespace UberEatsBackend.Models
     public bool IsOpen { get; set; }
     public decimal DeliveryFee { get; set; }
     public int EstimatedDeliveryTime { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+
+    private DateTime _createdAt;
+    private DateTime _updatedAt;
+
+    public DateTime CreatedAt
+    {
+        get => _createdAt;
+        set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
+
+    public DateTime UpdatedAt
+    {
+        get => _updatedAt;
+        set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
+            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+            value.ToUniversalTime();
+    }
 
     // Relaciones
     public int UserId { get; set; }
