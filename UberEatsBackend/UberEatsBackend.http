@@ -1,0 +1,6 @@
+@UberEatsBackend_HostAddress = http://localhost:5290
+
+GET {{UberEatsBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

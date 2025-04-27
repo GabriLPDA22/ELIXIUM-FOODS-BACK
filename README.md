@@ -1,137 +1,107 @@
-# ELIXIUM-FOODS-BACK
-# 🍽️ UberEatsBackend 🚚
+# 🚀 UberEatsBackend API
 
-![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)
-![EF Core](https://img.shields.io/badge/EF%20Core-8.0-brightgreen)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14.0-blue)
-![JWT](https://img.shields.io/badge/JWT-Authentication-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
+<div align="center">
+  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
+  <img src="https://img.shields.io/badge/EF_Core-8.0-00C58E?style=for-the-badge" alt="EF Core" />
+  <img src="https://img.shields.io/badge/PostgreSQL-AWS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white" alt="JWT" />
+  <img src="https://img.shields.io/badge/REST-API-FF6C37?style=for-the-badge&logo=swagger&logoColor=white" alt="REST API" />
+</div>
 
-A robust, scalable backend service for a food delivery platform built with .NET 8 and modern architecture patterns. This project serves as the backend counterpart to a Vue.js + TypeScript + Tailwind CSS frontend, forming a complete food delivery application.
+<p align="center">
+  <b>Potente backend para una plataforma de delivery de comida inspirada en UberEats | TFG Proyecto</b>
+</p>
 
-## 🚀 Features
+Este proyecto implementa una API robusta y escalable para una plataforma de entrega de comida, construida con tecnología .NET 8 y siguiendo los patrones de arquitectura modernos. Se integra con un frontend creado con Vue 3, TypeScript y Tailwind CSS para ofrecer una experiencia de usuario fluida y responsive.
 
-- **🔐 JWT Authentication & Authorization**: Secure user management with role-based access control
-- **🏪 Complete Restaurant Management**: Manage restaurants, menus, and products
-- **🛒 Order Processing System**: Full order lifecycle from creation to delivery
-- **💳 Payment Processing Integration**: Ready for payment gateway implementation
-- **📱 Mobile-First API Design**: Optimized for mobile applications
-- **🗄️ PostgreSQL Database**: Robust data persistence with AWS hosting
-- **🔄 Repository Pattern**: Clean separation of concerns
-- **🔌 RESTful API**: Well-designed API endpoints following REST principles
+## ✨ Características Principales
 
-## 📋 Architecture
+- **Autenticación Segura**: Sistema JWT con roles y permisos granulares
+- **Gestión de Restaurantes**: Catálogo completo con menús, categorías y productos
+- **Procesamiento de Pedidos**: Flujo completo desde creación hasta entrega
+- **Integración de Pagos**: Preparado para conectar con pasarelas de pago
+- **Diseño Mobile-First**: API optimizada para aplicaciones móviles
+- **Base de Datos en AWS**: PostgreSQL alojado en la nube para alta disponibilidad
+- **Arquitectura Avanzada**: Patrón repositorio y separación de responsabilidades
+- **Seguridad Robusta**: Protección contra vulnerabilidades comunes (XSS, CSRF, inyección SQL)
 
-The application follows a clean architecture pattern with:
+## 🏗️ Arquitectura
 
 ```
 UberEatsBackend/
-├── Controllers/       # API endpoints
-├── Models/            # Domain entities
-├── DTOs/              # Data Transfer Objects
-├── Services/          # Business logic
-├── Repositories/      # Data access layer
-├── Data/              # Database context and configurations
-├── Middleware/        # Custom middleware components
-└── Utils/             # Helper utilities
+├── 🎮 Controllers/       # Endpoints de la API REST
+├── 📦 Models/            # Entidades del dominio
+├── 📋 DTOs/              # Objetos de transferencia de datos
+├── ⚙️ Services/          # Lógica de negocio
+├── 🗃️ Repositories/      # Capa de acceso a datos
+├── 💾 Data/              # Contexto y configuraciones de BD
+├── 🔌 Middleware/        # Componentes de middleware personalizados
+├── 🛠️ Utils/             # Utilidades y helpers
+└── 📝 .env               # Variables de entorno (desarrollo local)
 ```
 
-## 🔧 Technologies
+## 🔧 Stack Tecnológico
 
-- **ASP.NET Core 8**: Latest framework for building high-performance APIs
-- **Entity Framework Core**: ORM for database operations
-- **PostgreSQL**: Robust, open-source database
-- **JWT Authentication**: Secure token-based authentication
-- **Swagger/OpenAPI**: API documentation and testing
-- **CORS Support**: Configured for frontend integration
-- **Error Handling Middleware**: Consistent error responses
-- **Logging System**: Comprehensive activity tracking
+**Backend:**
+- **ASP.NET Core 8**: Marco de trabajo moderno para APIs de alto rendimiento
+- **Entity Framework Core**: ORM para operaciones de base de datos
+- **PostgreSQL**: Base de datos robusta alojada en AWS
+- **JWT Authentication**: Mecanismo seguro de autenticación basado en tokens
+- **Swagger/OpenAPI**: Documentación interactiva de la API
+- **CORS configurado**: Integración segura con el frontend
+- **Manejo de errores centralizado**: Respuestas consistentes en toda la API
+- **Variables de entorno**: Configuración segura entre entornos
 
-## 🛠️ Installation & Setup
+**Frontend asociado:**
+- Vue 3 (Composition API)
+- TypeScript
+- Tailwind CSS
+- Metodología BEM para CSS
 
-### Prerequisites
+## 🚦 Cómo Empezar
 
-- [.NET SDK 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) or newer
-- [PostgreSQL](https://www.postgresql.org/download/) (or access to an AWS PostgreSQL instance)
-- IDE (recommended: Visual Studio 2022 or JetBrains Rider)
+### Requisitos Previos
 
-### Getting Started
+- [.NET SDK 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) o superior
+- Acceso a PostgreSQL (local o en AWS)
+- IDE recomendado: Visual Studio 2022/VS Code/JetBrains Rider
 
-1. **Clone the repository**
+### Configuración Inicial
+
+1. **Clonar el repositorio**
 
 ```bash
-git clone https://github.com/yourusername/UberEatsBackend.git
+git clone https://github.com/tuusuario/UberEatsBackend.git
 cd UberEatsBackend
 ```
 
-2. **Update database connection string**
+2. **Configurar variables de entorno**
 
-Edit `appsettings.json` with your PostgreSQL connection details:
+Copia `.env.example` a `.env` y ajusta los valores:
 
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Host=your-aws-postgres-instance.amazonaws.com;Database=ubereats;Username=your_username;Password=your_password"
-}
+```bash
+cp .env.example .env
+# Edita el archivo .env con tus credenciales y configuración
 ```
 
-3. **Apply database migrations**
+3. **Aplicar migraciones de base de datos**
 
 ```bash
 dotnet ef database update
 ```
 
-4. **Run the application**
+4. **Ejecutar la aplicación**
 
 ```bash
 dotnet run
 ```
 
-The API will be available at `https://localhost:7264` and `http://localhost:5264` by default.
+La API estará disponible en `https://localhost:7264/api` y Swagger en `https://localhost:7264/swagger`
 
-## 📝 API Documentation
+## 📊 Modelo de Datos
 
-Once the application is running, access the Swagger UI documentation at:
-```
-https://localhost:7264/swagger
-```
-
-## 🔄 Front-End Integration
-
-This backend is designed to pair with a Vue.js front-end application using:
-- Vue 3 with Composition API
-- TypeScript for type safety
-- Tailwind CSS for styling
-- BEM naming convention for CSS components
-
-CORS is configured to allow requests from the Vue development server.
-
-## 🛡️ Authentication
-
-The API uses JWT tokens for authentication. To access protected endpoints:
-
-1. Register a user via `/api/Auth/register`
-2. Login via `/api/Auth/login` to receive a token
-3. Include the token in the Authorization header as a Bearer token
-
-## 🧪 Testing
-
-Run the test suite with:
-
-```bash
-dotnet test
-```
-
-## 📦 Deployment
-
-The application is designed to be deployed to:
-- AWS EC2 instances
-- Azure App Service
-- Docker containers
-- Any platform supporting .NET 8 applications
-
-## 📚 Entity Relationship Diagram
-
-```
+<div align="center">
+  <pre>
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
 │    Users    │     │  Restaurants │     │   Menus     │
 ├─────────────┤     ├──────────────┤     ├─────────────┤
@@ -168,22 +138,106 @@ The application is designed to be deployed to:
                     │ UnitPrice    │     │ ImageUrl    │
                     │              │     │ CategoryId  │
                     └──────────────┘     └─────────────┘
+  </pre>
+</div>
+
+## 🔒 Autenticación y Autorización
+
+El sistema implementa autenticación JWT completa:
+
+1. **Registro**: `POST /api/Auth/register`
+   ```json
+   {
+     "email": "usuario@example.com",
+     "password": "Contraseña123!",
+     "firstName": "Nombre",
+     "lastName": "Apellido",
+     "phoneNumber": "612345678"
+   }
+   ```
+
+2. **Login**: `POST /api/Auth/login`
+   ```json
+   {
+     "email": "usuario@example.com",
+     "password": "Contraseña123!"
+   }
+   ```
+
+3. El servidor devuelve un token JWT que debe incluirse en el encabezado `Authorization: Bearer {token}` para acceder a endpoints protegidos.
+
+## 📱 Ejemplos de Uso de la API
+
+### Crear un nuevo restaurante
+```http
+POST /api/Restaurants
+Content-Type: application/json
+Authorization: Bearer {token}
+
+{
+  "name": "Burger Deluxe",
+  "description": "Las mejores hamburguesas de la ciudad",
+  "logoUrl": "https://example.com/logo.png",
+  "isOpen": true,
+  "deliveryFee": 2.50,
+  "estimatedDeliveryTime": 30,
+  "address": {
+    "street": "Calle Principal 123",
+    "city": "Madrid",
+    "state": "Madrid",
+    "zipCode": "28001"
+  }
+}
 ```
 
-## 🤝 Contributing
+### Realizar un pedido
+```http
+POST /api/Orders
+Content-Type: application/json
+Authorization: Bearer {token}
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+{
+  "restaurantId": 1,
+  "deliveryAddressId": 3,
+  "items": [
+    {
+      "productId": 5,
+      "quantity": 2
+    },
+    {
+      "productId": 8,
+      "quantity": 1
+    }
+  ],
+  "paymentMethod": "card"
+}
+```
 
-## 📄 License
+## 🚢 Despliegue
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+El backend está diseñado para ser desplegado en:
+- Contenedores Docker
+- AWS Elastic Beanstalk
+- Azure App Service
+- Kubernetes
 
-## 📧 Contact
+## 📋 Mejoras Futuras
 
-Your Name - [your.email@example.com](mailto:your.email@example.com)
+- Implementación de notificaciones en tiempo real con SignalR
+- Integración con servicios de mapas para seguimiento de entregas
+- Sistema de calificación y reseñas
+- Optimización de consultas para mayor rendimiento
+- Implementación de caché distribuida
 
-Project Link: [https://github.com/yourusername/UberEatsBackend](https://github.com/yourusername/UberEatsBackend)
+## 📄 Licencia
+
+Este proyecto forma parte de un Trabajo de Fin de Grado (TFG) y está sujeto a las directrices académicas correspondientes.
 
 ---
 
-⭐ Star this repository if you find it helpful! ⭐
+<div align="center">
+  <b>Desarrollado con ❤️ por Francisco Villa y Gabriel Saiz</b><br>
+  <a href="mailto:gsaiz.bajo@gmail.com">gsaiz.bajo@gmail.com</a> • 
+  <a href="https://linkedin.com/in/tuusuario">LinkedIn</a> • 
+  <a href="https://github.com/tuusuario">GitHub</a>
+</div>
