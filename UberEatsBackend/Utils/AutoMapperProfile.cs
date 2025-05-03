@@ -36,7 +36,12 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.OwnerName, opt => opt.MapFrom(src => src.Owner.FullName))
           .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address));
 
+      CreateMap<Restaurant, RestaurantCardDto>()
+          .ForMember(dest => dest.OrderCount, opt => opt.MapFrom(src => src.Orders.Count))
+          .ForMember(dest => dest.Cuisine, opt => opt.Ignore()); // Puede ser populado manualmente
+
       CreateMap<CreateRestaurantDto, Restaurant>();
+      CreateMap<UpdateRestaurantDto, Restaurant>();
 
       // Menu Mappings
       CreateMap<Menu, MenuDto>()
@@ -48,6 +53,7 @@ namespace UberEatsBackend.Utils
       CreateMap<Category, CategoryDto>()
           .ForMember(dest => dest.Products, opt => opt.MapFrom(src => src.Products));
       CreateMap<CreateCategoryDto, Category>();
+      CreateMap<UpdateCategoryDto, Category>();
 
       // Product Mappings
       CreateMap<Product, ProductDto>()

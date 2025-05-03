@@ -28,6 +28,7 @@ namespace UberEatsBackend.Data
       // Aplicar configuraciones
       modelBuilder.ApplyConfiguration(new UserConfiguration());
       modelBuilder.ApplyConfiguration(new AddressConfiguration());
+      modelBuilder.ApplyConfiguration(new RestaurantConfiguration());
 
       // Configuración para Order y User (relación con DeliveryPerson)
       modelBuilder.Entity<Order>()
@@ -42,8 +43,6 @@ namespace UberEatsBackend.Data
           .WithMany(u => u.CustomerOrders)
           .HasForeignKey(o => o.UserId)
           .OnDelete(DeleteBehavior.Restrict);
-
-      // Otras configuraciones globales si son necesarias
     }
   }
 }
