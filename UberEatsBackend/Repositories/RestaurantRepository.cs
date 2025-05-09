@@ -68,5 +68,14 @@ namespace UberEatsBackend.Repositories
       return await _context.Restaurants
           .AnyAsync(r => r.Id == restaurantId && r.UserId == userId);
     }
+
+    public async Task<List<Restaurant>> GetByTipoAsync(int tipo)
+    {
+      return await _context.Restaurants
+          .Include(r => r.Address)
+          .Where(r => r.Tipo == tipo)
+          .OrderBy(r => r.Name)
+          .ToListAsync();
+    }
   }
 }

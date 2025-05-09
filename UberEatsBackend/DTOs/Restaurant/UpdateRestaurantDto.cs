@@ -9,5 +9,6 @@ namespace UberEatsBackend.DTOs.Restaurant
         public bool IsOpen { get; set; }
         public decimal DeliveryFee { get; set; }
         public int EstimatedDeliveryTime { get; set; }
+        public int Tipo { get; set; }
     }
 }

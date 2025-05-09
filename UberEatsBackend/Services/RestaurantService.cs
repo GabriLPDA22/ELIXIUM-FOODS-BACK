@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using UberEatsBackend.DTOs.Restaurant;
 using UberEatsBackend.Models;
 using UberEatsBackend.Repositories;
 using AutoMapper;
@@ -46,14 +45,10 @@ namespace UberEatsBackend.Services
     {
       return await _restaurantRepository.GetByOwnerAsync(userId);
     }
-  }
 
-  public interface IRestaurantService
-  {
-    Task<List<Restaurant>> GetPopularRestaurantsAsync(int limit = 10);
-    Task<List<Restaurant>> SearchRestaurantsAsync(string? query, string? cuisine);
-    Task<Restaurant?> GetRestaurantWithDetailsAsync(int id);
-    Task<bool> IsUserAuthorizedForRestaurant(int restaurantId, int userId, string userRole);
-    Task<List<Restaurant>> GetRestaurantsByOwnerAsync(int userId);
+    public async Task<List<Restaurant>> GetRestaurantsByTipoAsync(int tipo)
+    {
+      return await _restaurantRepository.GetByTipoAsync(tipo);
+    }
   }
 }

@@ -19,5 +19,6 @@ namespace UberEatsBackend.DTOs.Restaurant
         public AddressDto Address { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public int Tipo { get; set; }
     }
 }

@@ -20,5 +20,6 @@ namespace UberEatsBackend.DTOs.Restaurant
     // Agregando los campos para el frontend
     public string? PriceRange { get; set; }
     public int OrderCount { get; set; }
+    public int Tipo { get; set; }
   }
 }

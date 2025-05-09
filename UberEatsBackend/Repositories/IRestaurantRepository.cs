@@ -11,5 +11,6 @@ namespace UberEatsBackend.Repositories
     Task<List<Restaurant>> SearchRestaurantsAsync(string? query, string? cuisine);
     Task<List<Restaurant>> GetByOwnerAsync(int userId);
     Task<bool> IsOwner(int restaurantId, int userId);
+    Task<List<Restaurant>> GetByTipoAsync(int tipo);
   }
 }

@@ -43,6 +43,10 @@ namespace UberEatsBackend.Data.EntityConfigurations
       builder.Property(r => r.UpdatedAt)
           .IsRequired();
 
+      builder.Property(r => r.Tipo)
+          .IsRequired()
+          .HasDefaultValue(1);
+
       // Relaciones
       builder.HasOne(r => r.Owner)
           .WithOne(u => u.Restaurant)

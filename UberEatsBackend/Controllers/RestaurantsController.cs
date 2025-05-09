@@ -60,6 +60,18 @@ namespace UberEatsBackend.Controllers
             var restaurants = await _restaurantService.SearchRestaurantsAsync(query, cuisine);
             return Ok(_mapper.Map<IEnumerable<RestaurantCardDto>>(restaurants));
         }
+        [HttpGet("tipo/{tipo}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<RestaurantCardDto>>> GetRestaurantsByTipo(int tipo)
+        {
+            if (tipo < 1 || tipo > 8)
+            {
+                return BadRequest("El tipo debe estar entre 1 y 8");
+            }
+            
+            var restaurants = await _restaurantService.GetRestaurantsByTipoAsync(tipo);
+            return Ok(_mapper.Map<IEnumerable<RestaurantCardDto>>(restaurants));
+        }
 
         // GET: api/restaurants/5
         [HttpGet("{id}")]
