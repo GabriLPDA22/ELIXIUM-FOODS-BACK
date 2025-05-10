@@ -66,6 +66,14 @@ namespace UberEatsBackend.Data.EntityConfigurations
           .WithOne(r => r.Owner)
           .HasForeignKey<Restaurant>(r => r.UserId)
           .OnDelete(DeleteBehavior.Restrict);
+
+      // JWT Token
+      builder.Property(u => u.RefreshToken)
+        .IsRequired(false)
+        .HasMaxLength(255);
+
+      builder.Property(u => u.RefreshTokenExpiry)
+        .IsRequired(false);
     }
   }
 }
