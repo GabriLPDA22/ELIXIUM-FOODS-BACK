@@ -19,13 +19,6 @@ namespace UberEatsBackend.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public async Task<User?> GetWithAddressesAsync(int id)
-        {
-            return await _context.Users
-                .Include(u => u.Addresses)
-                .FirstOrDefaultAsync(u => u.Id == id);
-        }
-
         public async Task<List<User>> GetByRoleAsync(string role)
         {
             return await _context.Users
@@ -33,9 +26,24 @@ namespace UberEatsBackend.Repositories
                 .ToListAsync();
         }
 
-        public async Task<bool> IsEmailUniqueAsync(string email)
+        public async Task<bool> EmailExistsAsync(string email)
         {
-            return !await _context.Users.AnyAsync(u => u.Email == email);
+            return await _context.Users
+                .AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<User?> GetWithAddressesAsync(int id)
+        {
+            return await _context.Users
+                .Include(u => u.Addresses)
+                .FirstOrDefaultAsync(u => u.Id == id);
+        }
+
+        public async Task<List<User>> GetUsersByRefreshTokenAsync(string refreshToken)
+        {
+            return await _context.Users
+                .Where(u => u.RefreshToken == refreshToken)
+                .ToListAsync();
         }
     }
 }

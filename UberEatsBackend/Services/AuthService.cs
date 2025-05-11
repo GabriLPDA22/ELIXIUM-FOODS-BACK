@@ -55,14 +55,15 @@ namespace UberEatsBackend.Services
 
       await _userRepository.AddAsync(user);
 
-      // Generar token
-      string token = _tokenService.GenerateToken(user);
+      // Generar tokens
+      var (accessToken, refreshToken) = _tokenService.GenerateTokens(user);
 
       return new AuthResponseDto
       {
         Success = true,
         Message = "Usuario registrado correctamente",
-        Token = token,
+        Token = accessToken,
+        RefreshToken = refreshToken,
         UserId = user.Id,
         Email = user.Email,
         FirstName = user.FirstName,
@@ -96,20 +97,64 @@ namespace UberEatsBackend.Services
         };
       }
 
-      // Generar token
-      string token = _tokenService.GenerateToken(user);
+      // Generar tokens
+      var (accessToken, refreshToken) = _tokenService.GenerateTokens(user);
 
       return new AuthResponseDto
       {
         Success = true,
         Message = "Inicio de sesión exitoso",
-        Token = token,
+        Token = accessToken,
+        RefreshToken = refreshToken,
         UserId = user.Id,
         Email = user.Email,
         FirstName = user.FirstName,
         LastName = user.LastName,
         Role = user.Role
       };
+    }
+
+    public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
+    {
+      try
+      {
+        // Obtener nuevos tokens
+        var (accessToken, newRefreshToken) = await _tokenService.RefreshTokenAsync(refreshToken);
+
+        return new AuthResponseDto
+        {
+          Success = true,
+          Message = "Token actualizado correctamente",
+          Token = accessToken,
+          RefreshToken = newRefreshToken
+        };
+      }
+      catch (Exception ex)
+      {
+        return new AuthResponseDto
+        {
+          Success = false,
+          Message = $"Error al refrescar token: {ex.Message}"
+        };
+      }
+    }
+
+    public async Task<bool> RevokeTokenAsync(string refreshToken)
+    {
+      try
+      {
+        await _tokenService.RevokeTokenAsync(refreshToken);
+        return true;
+      }
+      catch
+      {
+        return false;
+      }
+    }
+
+    public async Task<bool> ValidateTokenAsync(string token)
+    {
+      return await _tokenService.ValidateTokenAsync(token);
     }
   }
 }
