@@ -14,6 +14,10 @@ namespace UberEatsBackend.Models
     // Relaciones
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
+    
+    // Nueva propiedad para relación directa con restaurante
+    // Esta es una propiedad de navegación calculada (no almacenada en DB)
+    public int RestaurantId => Category?.Menu?.RestaurantId ?? 0;
 
     // Navigation properties
     public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

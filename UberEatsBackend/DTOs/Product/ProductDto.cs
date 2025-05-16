@@ -11,5 +11,7 @@ namespace UberEatsBackend.DTOs.Product
         public int CategoryId { get; set; }
         public string CategoryName { get; set; }
         public int RestaurantId { get; set; }
+        public string RestaurantName { get; set; }
+        public string RestaurantLogo { get; set; }
     }
 }
