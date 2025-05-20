@@ -7,6 +7,7 @@ using UberEatsBackend.DTOs.Product;
 using UberEatsBackend.DTOs.Restaurant;
 using UberEatsBackend.DTOs.User;
 using UberEatsBackend.DTOs.Address;
+using UberEatsBackend.DTOs.Business;
 using UberEatsBackend.Models;
 
 namespace UberEatsBackend.Utils
@@ -30,6 +31,13 @@ namespace UberEatsBackend.Utils
       CreateMap<CreateAddressDto, Address>();
       CreateMap<CreateExtendedAddressDto, Address>();
       CreateMap<UpdateAddressDto, Address>();
+
+      // Business Mappings
+      CreateMap<Business, BusinessDto>()
+          .ForMember(dest => dest.OwnerName, opt => opt.MapFrom(src => src.Owner.FullName))
+          .ForMember(dest => dest.Restaurants, opt => opt.MapFrom(src => src.Restaurants));
+      CreateMap<CreateBusinessDto, Business>();
+      CreateMap<UpdateBusinessDto, Business>();
 
       // Restaurant Mappings
       CreateMap<Restaurant, RestaurantDto>()
@@ -76,6 +84,11 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl));
 
       CreateMap<Payment, PaymentDto>();
+
+      // Promotion mappings
+      CreateMap<Promotion, PromotionDto>()
+          .ForMember(dest => dest.BusinessName, opt => opt.MapFrom(src => src.Business.Name));
+      CreateMap<CreatePromotionDto, Promotion>();
     }
   }
 }

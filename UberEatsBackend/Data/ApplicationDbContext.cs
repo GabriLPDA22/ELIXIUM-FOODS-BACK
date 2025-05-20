@@ -20,6 +20,7 @@ namespace UberEatsBackend.Data
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
+    public DbSet<Business> Businesses { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +30,7 @@ namespace UberEatsBackend.Data
       modelBuilder.ApplyConfiguration(new UserConfiguration());
       modelBuilder.ApplyConfiguration(new AddressConfiguration());
       modelBuilder.ApplyConfiguration(new RestaurantConfiguration());
+      modelBuilder.ApplyConfiguration(new BusinessConfiguration());
 
       // Configuración para Order y User (relación con DeliveryPerson)
       modelBuilder.Entity<Order>()

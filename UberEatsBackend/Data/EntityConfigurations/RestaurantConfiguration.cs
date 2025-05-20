@@ -47,6 +47,10 @@ namespace UberEatsBackend.Data.EntityConfigurations
           .IsRequired()
           .HasDefaultValue(1);
 
+      // Configurar columna BusinessId (nueva)
+      builder.Property(r => r.BusinessId)
+          .IsRequired(false);
+
       // Relaciones
       builder.HasOne(r => r.Owner)
           .WithOne(u => u.Restaurant)
@@ -57,6 +61,9 @@ namespace UberEatsBackend.Data.EntityConfigurations
           .WithOne(a => a.Restaurant)
           .HasForeignKey<Restaurant>(r => r.AddressId)
           .OnDelete(DeleteBehavior.Cascade);
+
+      // La relación con Business se define en BusinessConfiguration
+      // para evitar definiciones duplicadas que causan el problema BusinessId1
 
       builder.HasMany(r => r.Menus)
           .WithOne(m => m.Restaurant)

@@ -33,6 +33,10 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
+builder.Services.AddScoped<IBusinessService, BusinessService>();
+builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
 
 // Configurar CORS para permitir peticiones del cliente Vue.js
 builder.Services.AddCors(options =>
