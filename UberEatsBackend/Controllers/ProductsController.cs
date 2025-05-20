@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using UberEatsBackend.DTOs.Product;
 using UberEatsBackend.Services;
+using System.Linq;
 
 namespace UberEatsBackend.Controllers
 {
@@ -68,7 +69,7 @@ namespace UberEatsBackend.Controllers
     [Authorize(Roles = "Restaurant,Admin")]
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductDto createProductDto)
     {
-      // Verificar que el usuario tiene permiso para crear productos en esta categoría/restaurante
+      // Verify that the user has permission to create products in this category
       if (!await CanManageProduct(createProductDto.CategoryId))
       {
         return Forbid();
@@ -83,14 +84,14 @@ namespace UberEatsBackend.Controllers
     [Authorize(Roles = "Restaurant,Admin")]
     public async Task<IActionResult> UpdateProduct(int id, UpdateProductDto updateProductDto)
     {
-      // Verificar que el producto existe
+      // Verify that the product exists
       var existingProduct = await _productService.GetProductByIdAsync(id);
       if (existingProduct == null)
       {
         return NotFound();
       }
 
-      // Verificar que el usuario tiene permiso para actualizar este producto
+      // Verify that the user has permission to update this product
       if (!await CanManageProduct(existingProduct.CategoryId))
       {
         return Forbid();
@@ -110,14 +111,14 @@ namespace UberEatsBackend.Controllers
     [Authorize(Roles = "Restaurant,Admin")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-      // Verificar que el producto existe
+      // Verify that the product exists
       var existingProduct = await _productService.GetProductByIdAsync(id);
       if (existingProduct == null)
       {
         return NotFound();
       }
 
-      // Verificar que el usuario tiene permiso para eliminar este producto
+      // Verify that the user has permission to delete this product
       if (!await CanManageProduct(existingProduct.CategoryId))
       {
         return Forbid();
@@ -132,24 +133,25 @@ namespace UberEatsBackend.Controllers
       return NoContent();
     }
 
-    // Método auxiliar para verificar permisos
+    // Helper method to verify permissions
     private async Task<bool> CanManageProduct(int categoryId)
     {
-      // Administradores siempre pueden gestionar productos
+      // Administrators always can manage products
       if (User.IsInRole("Admin"))
       {
         return true;
       }
 
-      // Para usuarios de tipo restaurante, verificar si la categoría pertenece a uno de sus restaurantes
+      // For restaurant users, check if the category belongs to one of their restaurants
       if (User.IsInRole("Restaurant"))
       {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-        
-        // Obtener los restaurantes del usuario
-        var restaurants = await _restaurantService.GetRestaurantsByOwnerAsync(userId);
-        
-        // Verificar si la categoría pertenece a alguno de sus restaurantes
+
+        // Get all accessible restaurants for this user
+        // Note: In the new architecture, we use GetRestaurantsForAdminAsync instead of GetRestaurantsByOwnerAsync
+        var restaurants = await _restaurantService.GetRestaurantsForAdminAsync(userId);
+
+        // Verify if the category belongs to any of these restaurants
         foreach (var restaurant in restaurants)
         {
           var products = await _productService.GetProductsByRestaurantIdAsync(restaurant.Id);

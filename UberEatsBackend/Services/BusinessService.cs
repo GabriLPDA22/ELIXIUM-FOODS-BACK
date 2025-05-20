@@ -1,9 +1,10 @@
-// UberEatsBackend/Services/BusinessService.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using UberEatsBackend.Data;
 using UberEatsBackend.DTOs.Business;
 using UberEatsBackend.Models;
 using UberEatsBackend.Repositories;
@@ -15,17 +16,20 @@ namespace UberEatsBackend.Services
     private readonly IBusinessRepository _businessRepository;
     private readonly IOrderRepository _orderRepository;
     private readonly IPromotionRepository _promotionRepository;
+    private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
 
     public BusinessService(
         IBusinessRepository businessRepository,
         IOrderRepository orderRepository,
         IPromotionRepository promotionRepository,
+        ApplicationDbContext context,
         IMapper mapper)
     {
       _businessRepository = businessRepository;
       _orderRepository = orderRepository;
       _promotionRepository = promotionRepository;
+      _context = context;
       _mapper = mapper;
     }
 
@@ -41,19 +45,11 @@ namespace UberEatsBackend.Services
       return business != null ? _mapper.Map<BusinessDto>(business) : null;
     }
 
-    public async Task<List<BusinessDto>> GetBusinessesByOwnerIdAsync(int userId)
-    {
-      var businesses = await _businessRepository.GetByOwnerIdAsync(userId);
-      return _mapper.Map<List<BusinessDto>>(businesses);
-    }
-
-    public async Task<BusinessDto> CreateBusinessAsync(int userId, CreateBusinessDto createBusinessDto)
+    public async Task<BusinessDto> CreateBusinessAsync(CreateBusinessDto createBusinessDto)
     {
       var business = _mapper.Map<Business>(createBusinessDto);
-      business.UserId = userId;
       business.CreatedAt = DateTime.UtcNow;
       business.UpdatedAt = DateTime.UtcNow;
-
       var createdBusiness = await _businessRepository.AddAsync(business);
       return _mapper.Map<BusinessDto>(createdBusiness);
     }
@@ -81,20 +77,38 @@ namespace UberEatsBackend.Services
       return true;
     }
 
+    public bool IsAdministrator(string userRole)
+    {
+      return userRole == "Admin";
+    }
+
     public async Task<bool> IsUserAuthorizedForBusiness(int businessId, int userId, string userRole)
     {
       if (userRole == "Admin")
         return true;
 
-      return await _businessRepository.IsOwner(businessId, userId);
+      var business = await _businessRepository.GetByIdAsync(businessId);
+      if (business == null)
+        return false;
+
+      return business.UserId.HasValue && business.UserId.Value == userId;
+    }
+
+    public async Task<BusinessDto?> GetBusinessByAssignedUserIdAsync(int userId)
+    {
+        var business = await _context.Businesses
+            .Include(b => b.User)
+            .Include(b => b.Restaurants)
+            .FirstOrDefaultAsync(b => b.UserId == userId);
+
+        return business != null ? _mapper.Map<BusinessDto>(business) : null;
     }
 
     public async Task<BusinessStatsDto> GetBusinessStatsAsync(int businessId)
     {
-      // Obtener el negocio con sus restaurantes
       var business = await _businessRepository.GetWithDetailsAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
 
       var stats = new BusinessStatsDto
       {
@@ -110,11 +124,9 @@ namespace UberEatsBackend.Services
       double totalRating = 0;
       int totalRatingCount = 0;
 
-      // Calcular estadísticas para cada restaurante
       foreach (var restaurant in business.Restaurants)
       {
         var orders = await _orderRepository.GetOrdersByRestaurantIdAsync(restaurant.Id);
-
         var restaurantStat = new RestaurantStatsDto
         {
           RestaurantId = restaurant.Id,
@@ -122,40 +134,28 @@ namespace UberEatsBackend.Services
           OrderCount = orders.Count,
           Revenue = orders.Sum(o => o.Total),
           AverageRating = restaurant.AverageRating,
-          ProductCount = restaurant.Menus
-              .SelectMany(m => m.Categories)
-              .SelectMany(c => c.Products)
-              .Count()
+          ProductCount = restaurant.Menus?.SelectMany(m => m.Categories)?.SelectMany(c => c.Products)?.Count() ?? 0
         };
-
         stats.RestaurantStats.Add(restaurantStat);
         stats.TotalOrders += restaurantStat.OrderCount;
         stats.TotalRevenue += restaurantStat.Revenue;
-
-        // Acumular para calcular promedio general
         if (restaurant.AverageRating > 0)
         {
           totalRating += restaurant.AverageRating;
           totalRatingCount++;
         }
       }
-
-      // Calcular promedio general si hay calificaciones
       stats.AverageRating = totalRatingCount > 0 ? totalRating / totalRatingCount : 0;
-
       return stats;
     }
 
-    // Image management methods
     public async Task UpdateLogoAsync(int businessId, string? logoUrl)
     {
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       business.LogoUrl = logoUrl ?? string.Empty;
       business.UpdatedAt = DateTime.UtcNow;
-
       await _businessRepository.UpdateAsync(business);
     }
 
@@ -163,175 +163,83 @@ namespace UberEatsBackend.Services
     {
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       business.CoverImageUrl = coverImageUrl ?? string.Empty;
       business.UpdatedAt = DateTime.UtcNow;
-
       await _businessRepository.UpdateAsync(business);
     }
 
-    // Business hours methods
-    public async Task<List<BusinessHourDto>> GetBusinessHoursAsync(int businessId)
-    {
-      // Verificar que el negocio existe
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Implementación futura: Obtener los horarios del negocio desde el repositorio
-      // Por ahora, retornar lista vacía
-      return new List<BusinessHourDto>();
-    }
-
-    public async Task<BusinessHourDto> AddBusinessHourAsync(int businessId, CreateBusinessHourDto createBusinessHourDto)
-    {
-      // Verificar que el negocio existe
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Implementación futura: Agregar horario al negocio
-      throw new NotImplementedException("Método no implementado todavía");
-    }
-
-    public async Task<BusinessHourDto?> UpdateBusinessHourAsync(int businessId, int hourId, UpdateBusinessHourDto updateBusinessHourDto)
-    {
-      // Verificar que el negocio existe
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Implementación futura: Actualizar horario
-      throw new NotImplementedException("Método no implementado todavía");
-    }
-
-    public async Task<bool> DeleteBusinessHourAsync(int businessId, int hourId)
-    {
-      // Verificar que el negocio existe
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Implementación futura: Eliminar horario
-      throw new NotImplementedException("Método no implementado todavía");
-    }
-
-    // Promotions methods
     public async Task<List<PromotionDto>> GetBusinessPromotionsAsync(int businessId)
     {
-      // Verificar que el negocio existe
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Obtener las promociones del negocio
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       var promotions = await _promotionRepository.GetByBusinessIdAsync(businessId);
       return _mapper.Map<List<PromotionDto>>(promotions);
     }
 
     public async Task<PromotionDto> CreatePromotionAsync(int businessId, CreatePromotionDto createPromotionDto)
     {
-      // Verificar que el negocio existe
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Verificar que el código es único
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       if (!await _promotionRepository.IsCodeUniqueAsync(createPromotionDto.Code))
-        throw new InvalidOperationException($"El código de promoción '{createPromotionDto.Code}' ya está en uso");
-
-      // Crear la promoción
+        throw new InvalidOperationException($"Promotion code '{createPromotionDto.Code}' is already in use");
       var promotion = _mapper.Map<Promotion>(createPromotionDto);
       promotion.BusinessId = businessId;
       promotion.UsageCount = 0;
       promotion.Status = "active";
-
       var createdPromotion = await _promotionRepository.AddAsync(promotion);
       return _mapper.Map<PromotionDto>(createdPromotion);
     }
 
     public async Task<PromotionDto?> UpdatePromotionAsync(int businessId, int promotionId, UpdatePromotionDto updatePromotionDto)
     {
-      // Verificar que el negocio existe
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Verificar que la promoción existe y pertenece al negocio
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       var promotion = await _promotionRepository.GetByIdAsync(promotionId);
       if (promotion == null || promotion.BusinessId != businessId)
         return null;
-
-      // Verificar que el código es único si se está actualizando
       if (updatePromotionDto.Code != null && updatePromotionDto.Code != promotion.Code)
       {
         if (!await _promotionRepository.IsCodeUniqueAsync(updatePromotionDto.Code, promotionId))
-          throw new InvalidOperationException($"El código de promoción '{updatePromotionDto.Code}' ya está en uso");
-
+          throw new InvalidOperationException($"Promotion code '{updatePromotionDto.Code}' is already in use");
         promotion.Code = updatePromotionDto.Code;
       }
-
-      // Actualizar propiedades si están definidas
-      if (updatePromotionDto.Name != null)
-        promotion.Name = updatePromotionDto.Name;
-
-      if (updatePromotionDto.Description != null)
-        promotion.Description = updatePromotionDto.Description;
-
-      if (updatePromotionDto.Type != null)
-        promotion.Type = updatePromotionDto.Type;
-
-      if (updatePromotionDto.DiscountType != null)
-        promotion.DiscountType = updatePromotionDto.DiscountType;
-
-      if (updatePromotionDto.DiscountValue.HasValue)
-        promotion.DiscountValue = updatePromotionDto.DiscountValue.Value;
-
-      if (updatePromotionDto.StartDate.HasValue)
-        promotion.StartDate = updatePromotionDto.StartDate.Value;
-
-      if (updatePromotionDto.EndDate.HasValue)
-        promotion.EndDate = updatePromotionDto.EndDate.Value;
-
-      if (updatePromotionDto.MinimumOrderValue.HasValue)
-        promotion.MinimumOrderValue = updatePromotionDto.MinimumOrderValue.Value;
-
-      if (updatePromotionDto.UsageLimit.HasValue)
-        promotion.UsageLimit = updatePromotionDto.UsageLimit.Value;
-
+      if (updatePromotionDto.Name != null) promotion.Name = updatePromotionDto.Name;
+      if (updatePromotionDto.Description != null) promotion.Description = updatePromotionDto.Description;
+      if (updatePromotionDto.Type != null) promotion.Type = updatePromotionDto.Type;
+      if (updatePromotionDto.DiscountType != null) promotion.DiscountType = updatePromotionDto.DiscountType;
+      if (updatePromotionDto.DiscountValue.HasValue) promotion.DiscountValue = updatePromotionDto.DiscountValue.Value;
+      if (updatePromotionDto.StartDate.HasValue) promotion.StartDate = updatePromotionDto.StartDate.Value;
+      if (updatePromotionDto.EndDate.HasValue) promotion.EndDate = updatePromotionDto.EndDate.Value;
+      if (updatePromotionDto.MinimumOrderValue.HasValue) promotion.MinimumOrderValue = updatePromotionDto.MinimumOrderValue.Value;
+      if (updatePromotionDto.UsageLimit.HasValue) promotion.UsageLimit = updatePromotionDto.UsageLimit.Value;
       await _promotionRepository.UpdateAsync(promotion);
       return _mapper.Map<PromotionDto>(promotion);
     }
 
     public async Task<bool> DeletePromotionAsync(int businessId, int promotionId)
     {
-      // Verificar que el negocio existe
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Verificar que la promoción existe y pertenece al negocio
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       var promotion = await _promotionRepository.GetByIdAsync(promotionId);
       if (promotion == null || promotion.BusinessId != businessId)
         return false;
-
       await _promotionRepository.DeleteAsync(promotion);
       return true;
     }
 
     public async Task<bool> ActivatePromotionAsync(int businessId, int promotionId)
     {
-      // Verificar que el negocio existe
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Verificar que la promoción existe y pertenece al negocio
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       var promotion = await _promotionRepository.GetByIdAsync(promotionId);
       if (promotion == null || promotion.BusinessId != businessId)
         return false;
-
       promotion.Status = "active";
       await _promotionRepository.UpdateAsync(promotion);
       return true;
@@ -339,19 +247,47 @@ namespace UberEatsBackend.Services
 
     public async Task<bool> DeactivatePromotionAsync(int businessId, int promotionId)
     {
-      // Verificar que el negocio existe
       var business = await _businessRepository.GetByIdAsync(businessId);
       if (business == null)
-        throw new KeyNotFoundException($"Negocio con ID {businessId} no encontrado");
-
-      // Verificar que la promoción existe y pertenece al negocio
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
       var promotion = await _promotionRepository.GetByIdAsync(promotionId);
       if (promotion == null || promotion.BusinessId != businessId)
         return false;
-
       promotion.Status = "inactive";
       await _promotionRepository.UpdateAsync(promotion);
       return true;
+    }
+
+    public async Task<List<BusinessHourDto>> GetBusinessHoursAsync(int businessId)
+    {
+      var business = await _businessRepository.GetByIdAsync(businessId);
+      if (business == null)
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
+      return new List<BusinessHourDto>();
+    }
+
+    public async Task<BusinessHourDto> AddBusinessHourAsync(int businessId, CreateBusinessHourDto createBusinessHourDto)
+    {
+      var business = await _businessRepository.GetByIdAsync(businessId);
+      if (business == null)
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
+      throw new NotImplementedException("Method not implemented yet");
+    }
+
+    public async Task<BusinessHourDto?> UpdateBusinessHourAsync(int businessId, int hourId, UpdateBusinessHourDto updateBusinessHourDto)
+    {
+      var business = await _businessRepository.GetByIdAsync(businessId);
+      if (business == null)
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
+      throw new NotImplementedException("Method not implemented yet");
+    }
+
+    public async Task<bool> DeleteBusinessHourAsync(int businessId, int hourId)
+    {
+      var business = await _businessRepository.GetByIdAsync(businessId);
+      if (business == null)
+        throw new KeyNotFoundException($"Business with ID {businessId} not found");
+      throw new NotImplementedException("Method not implemented yet");
     }
   }
 }

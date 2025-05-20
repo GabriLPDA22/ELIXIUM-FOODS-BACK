@@ -1,4 +1,3 @@
-// UberEatsBackend/DTOs/Business/CreateBusinessDto.cs
 namespace UberEatsBackend.DTOs.Business
 {
   public class CreateBusinessDto
@@ -10,5 +9,6 @@ namespace UberEatsBackend.DTOs.Business
     public string ContactPhone { get; set; } = string.Empty;
     public string TaxId { get; set; } = string.Empty;
     public string BusinessType { get; set; } = "Restaurant";
+    public int? UserId { get; set; }
   }
 }

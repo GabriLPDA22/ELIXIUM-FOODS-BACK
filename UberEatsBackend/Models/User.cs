@@ -51,7 +51,6 @@ namespace UberEatsBackend.Models
 
     // Navigation properties
     public List<Address> Addresses { get; set; } = new List<Address>();
-    public Restaurant? Restaurant { get; set; }
     public List<Order> CustomerOrders { get; set; } = new List<Order>();
     public List<Order> DeliveryOrders { get; set; } = new List<Order>();
 

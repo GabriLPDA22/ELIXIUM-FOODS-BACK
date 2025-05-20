@@ -1,4 +1,3 @@
-// UberEatsBackend/DTOs/Business/UpdateBusinessDto.cs
 namespace UberEatsBackend.DTOs.Business
 {
   public class UpdateBusinessDto
@@ -11,5 +10,6 @@ namespace UberEatsBackend.DTOs.Business
     public string TaxId { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public string BusinessType { get; set; } = "Restaurant";
+    public int? UserId { get; set; }
   }
 }

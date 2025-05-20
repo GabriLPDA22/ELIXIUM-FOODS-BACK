@@ -1,4 +1,3 @@
-// UberEatsBackend/Models/Business.cs
 using System;
 using System.Collections.Generic;
 
@@ -16,6 +15,8 @@ namespace UberEatsBackend.Models
     public string TaxId { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
     public string BusinessType { get; set; } = "Restaurant";
+
+    public int? UserId { get; set; }
 
     private DateTime _createdAt;
     private DateTime _updatedAt;
@@ -36,11 +37,7 @@ namespace UberEatsBackend.Models
           value.ToUniversalTime();
     }
 
-    // Relaciones
-    public int UserId { get; set; }
-    public User Owner { get; set; } = null!;
-
-    // Navigation properties
+    public virtual User? User { get; set; }
     public List<Restaurant> Restaurants { get; set; } = new List<Restaurant>();
 
     public Business()

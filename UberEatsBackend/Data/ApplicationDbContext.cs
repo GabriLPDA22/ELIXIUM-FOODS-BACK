@@ -21,18 +21,20 @@ namespace UberEatsBackend.Data
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<Business> Businesses { get; set; } = null!;
+    public DbSet<Promotion> Promotions { get; set; } = null!;
+    public DbSet<BusinessHour> BusinessHours { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       base.OnModelCreating(modelBuilder);
 
-      // Aplicar configuraciones
+      // Apply configurations
       modelBuilder.ApplyConfiguration(new UserConfiguration());
       modelBuilder.ApplyConfiguration(new AddressConfiguration());
       modelBuilder.ApplyConfiguration(new RestaurantConfiguration());
       modelBuilder.ApplyConfiguration(new BusinessConfiguration());
 
-      // Configuración para Order y User (relación con DeliveryPerson)
+      // Configure Order and User (relationship with DeliveryPerson)
       modelBuilder.Entity<Order>()
           .HasOne(o => o.DeliveryPerson)
           .WithMany(u => u.DeliveryOrders)
@@ -45,6 +47,13 @@ namespace UberEatsBackend.Data
           .WithMany(u => u.CustomerOrders)
           .HasForeignKey(o => o.UserId)
           .OnDelete(DeleteBehavior.Restrict);
+
+      // Configure Address relationships
+      modelBuilder.Entity<Address>()
+          .HasOne(a => a.User)
+          .WithMany(u => u.Addresses)
+          .HasForeignKey(a => a.UserId)
+          .OnDelete(DeleteBehavior.Cascade);
     }
   }
 }

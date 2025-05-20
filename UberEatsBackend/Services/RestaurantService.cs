@@ -6,6 +6,7 @@ using UberEatsBackend.Models;
 using UberEatsBackend.Repositories;
 using UberEatsBackend.Data;
 using AutoMapper;
+using System.Linq;
 
 namespace UberEatsBackend.Services
 {
@@ -25,6 +26,13 @@ namespace UberEatsBackend.Services
       _mapper = mapper;
     }
 
+    public async Task<List<Restaurant>> GetAllRestaurantsAsync()
+    {
+      return await _restaurantRepository.Entities
+          .OrderBy(r => r.Name)
+          .ToListAsync();
+    }
+
     public async Task<List<Restaurant>> GetPopularRestaurantsAsync(int limit = 10)
     {
       return await _restaurantRepository.GetPopularRestaurantsAsync(limit);
@@ -42,24 +50,9 @@ namespace UberEatsBackend.Services
 
     public async Task<bool> IsUserAuthorizedForRestaurant(int restaurantId, int userId, string userRole)
     {
-      // Administradores siempre tienen acceso
       if (userRole == "Admin")
         return true;
 
-      // Para usuarios normales, verificar si están asociados al negocio del restaurante
-      var restaurant = await _restaurantRepository.GetByIdAsync(restaurantId);
-      if (restaurant == null)
-        return false;
-
-      // Si el restaurante tiene un Business, verificar si el usuario es propietario del negocio
-      if (restaurant.BusinessId.HasValue)
-      {
-        // Verificar si el usuario es propietario del negocio
-        return await _context.Businesses
-          .AnyAsync(b => b.Id == restaurant.BusinessId.Value && b.UserId == userId);
-      }
-
-      // Si no hay BusinessId, sólo los admins tienen acceso
       return false;
     }
 
@@ -75,8 +68,16 @@ namespace UberEatsBackend.Services
 
     public async Task<bool> IsBusinessOwner(int businessId, int userId)
     {
-      return await _context.Businesses
-        .AnyAsync(b => b.Id == businessId && b.UserId == userId);
+      return false;
+    }
+
+    public async Task<List<Restaurant>> GetRestaurantsForAdminAsync(int userId)
+    {
+      return await _restaurantRepository.Entities
+          .Include(r => r.Address)
+          .Include(r => r.Business)
+          .OrderBy(r => r.Name)
+          .ToListAsync();
     }
   }
 }

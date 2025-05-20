@@ -1,3 +1,4 @@
+// Updated RestaurantDto.cs
 using System;
 using UberEatsBackend.DTOs.Address;
 
@@ -19,7 +20,7 @@ namespace UberEatsBackend.DTOs.Restaurant
         public DateTime UpdatedAt { get; set; }
         public int Tipo { get; set; }
 
-        // Campos relacionados con el Business
+        // Business reference fields
         public int? BusinessId { get; set; }
         public string BusinessName { get; set; } = string.Empty;
     }

@@ -16,6 +16,7 @@ namespace UberEatsBackend.Models
     public int EstimatedDeliveryTime { get; set; }
     public int Tipo { get; set; } = 1;
 
+    // Only associate with Business, not User
     public int? BusinessId { get; set; }
     public Business? Business { get; set; }
 

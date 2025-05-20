@@ -7,31 +7,26 @@ namespace UberEatsBackend.Services
 {
     public interface IBusinessService
     {
-        // Métodos básicos CRUD
         Task<List<BusinessDto>> GetAllBusinessesAsync();
         Task<BusinessDto?> GetBusinessByIdAsync(int id);
-        Task<List<BusinessDto>> GetBusinessesByOwnerIdAsync(int userId);
-        Task<BusinessDto> CreateBusinessAsync(int userId, CreateBusinessDto createBusinessDto);
+        Task<BusinessDto> CreateBusinessAsync(CreateBusinessDto createBusinessDto);
         Task<BusinessDto?> UpdateBusinessAsync(int id, UpdateBusinessDto updateBusinessDto);
         Task<bool> DeleteBusinessAsync(int id);
 
-        // Métodos de autorización
+        bool IsAdministrator(string userRole);
         Task<bool> IsUserAuthorizedForBusiness(int businessId, int userId, string userRole);
+        Task<BusinessDto?> GetBusinessByAssignedUserIdAsync(int userId);
 
-        // Métodos de estadísticas
         Task<BusinessStatsDto> GetBusinessStatsAsync(int businessId);
 
-        // Métodos para gestión de imágenes
         Task UpdateLogoAsync(int businessId, string? logoUrl);
         Task UpdateCoverImageAsync(int businessId, string? coverImageUrl);
 
-        // Métodos para horarios de negocio (opcional)
         Task<List<BusinessHourDto>> GetBusinessHoursAsync(int businessId);
         Task<BusinessHourDto> AddBusinessHourAsync(int businessId, CreateBusinessHourDto createBusinessHourDto);
         Task<BusinessHourDto?> UpdateBusinessHourAsync(int businessId, int hourId, UpdateBusinessHourDto updateBusinessHourDto);
         Task<bool> DeleteBusinessHourAsync(int businessId, int hourId);
 
-        // Métodos para promociones (opcional)
         Task<List<PromotionDto>> GetBusinessPromotionsAsync(int businessId);
         Task<PromotionDto> CreatePromotionAsync(int businessId, CreatePromotionDto createPromotionDto);
         Task<PromotionDto?> UpdatePromotionAsync(int businessId, int promotionId, UpdatePromotionDto updatePromotionDto);

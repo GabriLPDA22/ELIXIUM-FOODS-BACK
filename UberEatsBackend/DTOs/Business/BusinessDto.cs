@@ -1,4 +1,3 @@
-// UberEatsBackend/DTOs/Business/BusinessDto.cs
 using System;
 using System.Collections.Generic;
 using UberEatsBackend.DTOs.Restaurant;
@@ -16,11 +15,11 @@ namespace UberEatsBackend.DTOs.Business
     public string TaxId { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public string BusinessType { get; set; } = string.Empty;
-    public int UserId { get; set; }
-    public string OwnerName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public List<RestaurantDto> Restaurants { get; set; } = new List<RestaurantDto>();
     public string CoverImageUrl { get; set; } = string.Empty;
+    public int? UserId { get; set; }
+    public string? UserEmail { get; set; }
   }
 }

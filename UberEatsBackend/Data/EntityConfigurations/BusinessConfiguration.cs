@@ -1,3 +1,4 @@
+// BusinessConfiguration.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using UberEatsBackend.Models;
@@ -46,18 +47,7 @@ namespace UberEatsBackend.Data.EntityConfigurations
       builder.Property(b => b.UpdatedAt)
           .IsRequired();
 
-      // Relaciones
-      builder.HasOne(b => b.Owner)
-          .WithMany()
-          .HasForeignKey(b => b.UserId)
-          .OnDelete(DeleteBehavior.Restrict);
-
-      // Configurar la relación con Restaurants
-      builder.HasMany(b => b.Restaurants)
-          .WithOne(r => r.Business)
-          .HasForeignKey(r => r.BusinessId)
-          .IsRequired(false)
-          .OnDelete(DeleteBehavior.SetNull);
+      // Relationship with Restaurants is configured in RestaurantConfiguration
     }
   }
 }
