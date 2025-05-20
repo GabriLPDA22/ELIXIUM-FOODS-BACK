@@ -10,5 +10,8 @@ namespace UberEatsBackend.DTOs.Restaurant
         public decimal DeliveryFee { get; set; }
         public int EstimatedDeliveryTime { get; set; }
         public int Tipo { get; set; }
+
+        // Campo para BusinessId
+        public int? BusinessId { get; set; }
     }
 }

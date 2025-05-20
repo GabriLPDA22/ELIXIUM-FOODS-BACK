@@ -14,11 +14,13 @@ namespace UberEatsBackend.DTOs.Restaurant
         public bool IsOpen { get; set; }
         public decimal DeliveryFee { get; set; }
         public int EstimatedDeliveryTime { get; set; }
-        public int UserId { get; set; }
-        public string OwnerName { get; set; } = string.Empty;
         public AddressDto Address { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public int Tipo { get; set; }
+
+        // Campos relacionados con el Business
+        public int? BusinessId { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
     }
 }

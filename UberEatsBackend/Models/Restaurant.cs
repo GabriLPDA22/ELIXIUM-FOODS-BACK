@@ -38,10 +38,6 @@ namespace UberEatsBackend.Models
           value.ToUniversalTime();
     }
 
-    // Relaciones
-    public int UserId { get; set; }
-    public User Owner { get; set; } = null!;
-
     public int AddressId { get; set; }
     public Address Address { get; set; } = null!;
 

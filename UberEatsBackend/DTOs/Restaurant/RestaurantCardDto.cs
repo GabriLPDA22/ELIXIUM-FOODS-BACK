@@ -21,5 +21,9 @@ namespace UberEatsBackend.DTOs.Restaurant
     public string? PriceRange { get; set; }
     public int OrderCount { get; set; }
     public int Tipo { get; set; }
+
+    // Campos relacionados con el Business
+    public int? BusinessId { get; set; }
+    public string BusinessName { get; set; } = string.Empty;
   }
 }

@@ -17,7 +17,6 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Owner)
           .Include(r => r.Menus)
               .ThenInclude(m => m.Categories)
                   .ThenInclude(c => c.Products)
@@ -55,25 +54,21 @@ namespace UberEatsBackend.Repositories
       return await queryable.OrderBy(r => r.Name).ToListAsync();
     }
 
-    public async Task<List<Restaurant>> GetByOwnerAsync(int userId)
-    {
-      return await _context.Restaurants
-          .Include(r => r.Address)
-          .Where(r => r.UserId == userId)
-          .ToListAsync();
-    }
-
-    public async Task<bool> IsOwner(int restaurantId, int userId)
-    {
-      return await _context.Restaurants
-          .AnyAsync(r => r.Id == restaurantId && r.UserId == userId);
-    }
-
     public async Task<List<Restaurant>> GetByTipoAsync(int tipo)
     {
       return await _context.Restaurants
           .Include(r => r.Address)
           .Where(r => r.Tipo == tipo)
+          .OrderBy(r => r.Name)
+          .ToListAsync();
+    }
+
+    // Método para obtener restaurantes por business ID
+    public async Task<List<Restaurant>> GetByBusinessIdAsync(int businessId)
+    {
+      return await _context.Restaurants
+          .Include(r => r.Address)
+          .Where(r => r.BusinessId == businessId)
           .OrderBy(r => r.Name)
           .ToListAsync();
     }
