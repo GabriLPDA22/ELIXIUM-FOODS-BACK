@@ -11,7 +11,7 @@ namespace UberEatsBackend.Models
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
-    public string Role { get; set; } = "Customer"; // Admin, Customer, Restaurant, DeliveryPerson
+    public string Role { get; set; } = "Customer"; // Admin, Customer, Restaurant, DeliveryPerson, Business
 
     public string? RefreshToken { get; set; }  // Token de refresco actual
     public DateTime? RefreshTokenExpiry { get; set; }  // Fecha de expiración
@@ -53,6 +53,7 @@ namespace UberEatsBackend.Models
     public List<Address> Addresses { get; set; } = new List<Address>();
     public List<Order> CustomerOrders { get; set; } = new List<Order>();
     public List<Order> DeliveryOrders { get; set; } = new List<Order>();
+    public Business? Business { get; set; }  // Relación con Business
 
     public User()
     {

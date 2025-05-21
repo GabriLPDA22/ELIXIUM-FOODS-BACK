@@ -1,5 +1,8 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using UberEatsBackend.Data;
 using UberEatsBackend.DTOs.Auth;
 using UberEatsBackend.Models;
 using UberEatsBackend.Repositories;
@@ -11,11 +14,13 @@ namespace UberEatsBackend.Services
   {
     private readonly IUserRepository _userRepository;
     private readonly TokenService _tokenService;
+    private readonly ApplicationDbContext _context;
 
-    public AuthService(IUserRepository userRepository, TokenService tokenService)
+    public AuthService(IUserRepository userRepository, TokenService tokenService, ApplicationDbContext context)
     {
       _userRepository = userRepository;
       _tokenService = tokenService;
+      _context = context;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request)
@@ -37,6 +42,7 @@ namespace UberEatsBackend.Services
         "admin" => "Admin",
         "restaurant" => "Restaurant",
         "deliveryperson" => "DeliveryPerson",
+        "business" => "Business",
         _ => "Customer"
       };
 
@@ -100,6 +106,16 @@ namespace UberEatsBackend.Services
       // Generar tokens
       var (accessToken, refreshToken) = _tokenService.GenerateTokens(user);
 
+      // Información adicional para usuarios de tipo Business
+      int? businessId = null;
+      if (user.Role == "Business")
+      {
+        // Cargar el negocio asociado al usuario
+        var business = await _context.Businesses
+            .FirstOrDefaultAsync(b => b.UserId == user.Id);
+        businessId = business?.Id;
+      }
+
       return new AuthResponseDto
       {
         Success = true,
@@ -110,7 +126,8 @@ namespace UberEatsBackend.Services
         Email = user.Email,
         FirstName = user.FirstName,
         LastName = user.LastName,
-        Role = user.Role
+        Role = user.Role,
+        BusinessId = businessId
       };
     }
 
