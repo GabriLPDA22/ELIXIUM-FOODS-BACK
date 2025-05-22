@@ -127,6 +127,12 @@ namespace UberEatsBackend.Services
       foreach (var restaurant in business.Restaurants)
       {
         var orders = await _orderRepository.GetOrdersByRestaurantIdAsync(restaurant.Id);
+
+        // Obtener productos del restaurante a través de RestaurantProducts
+        var productCount = await _context.RestaurantProducts
+            .Where(rp => rp.RestaurantId == restaurant.Id)
+            .CountAsync();
+
         var restaurantStat = new RestaurantStatsDto
         {
           RestaurantId = restaurant.Id,
@@ -134,17 +140,20 @@ namespace UberEatsBackend.Services
           OrderCount = orders.Count,
           Revenue = orders.Sum(o => o.Total),
           AverageRating = restaurant.AverageRating,
-          ProductCount = restaurant.Menus?.SelectMany(m => m.Categories)?.SelectMany(c => c.Products)?.Count() ?? 0
+          ProductCount = productCount // FIXED: Ya no usamos Menus
         };
+
         stats.RestaurantStats.Add(restaurantStat);
         stats.TotalOrders += restaurantStat.OrderCount;
         stats.TotalRevenue += restaurantStat.Revenue;
+
         if (restaurant.AverageRating > 0)
         {
           totalRating += restaurant.AverageRating;
           totalRatingCount++;
         }
       }
+
       stats.AverageRating = totalRatingCount > 0 ? totalRating / totalRatingCount : 0;
       return stats;
     }

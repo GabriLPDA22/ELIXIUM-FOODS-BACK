@@ -1,4 +1,3 @@
-// RestaurantConfiguration.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using UberEatsBackend.Models;
@@ -48,7 +47,6 @@ namespace UberEatsBackend.Data.EntityConfigurations
           .IsRequired()
           .HasDefaultValue(1);
 
-      // Configure BusinessId (optional relationship)
       builder.Property(r => r.BusinessId)
           .IsRequired(false);
 
@@ -58,16 +56,15 @@ namespace UberEatsBackend.Data.EntityConfigurations
           .HasForeignKey<Restaurant>(r => r.AddressId)
           .OnDelete(DeleteBehavior.Cascade);
 
-      // Relationship with Business
       builder.HasOne(r => r.Business)
           .WithMany(b => b.Restaurants)
           .HasForeignKey(r => r.BusinessId)
           .IsRequired(false)
           .OnDelete(DeleteBehavior.SetNull);
 
-      builder.HasMany(r => r.Menus)
-          .WithOne(m => m.Restaurant)
-          .HasForeignKey(m => m.RestaurantId)
+      builder.HasMany(r => r.RestaurantProducts)
+          .WithOne(rp => rp.Restaurant)
+          .HasForeignKey(rp => rp.RestaurantId)
           .OnDelete(DeleteBehavior.Cascade);
 
       builder.HasMany(r => r.Orders)

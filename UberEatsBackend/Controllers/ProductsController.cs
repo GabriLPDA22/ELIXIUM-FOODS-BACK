@@ -5,7 +5,6 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using UberEatsBackend.DTOs.Product;
 using UberEatsBackend.Services;
-using System.Linq;
 
 namespace UberEatsBackend.Controllers
 {
@@ -14,12 +13,12 @@ namespace UberEatsBackend.Controllers
   public class ProductsController : ControllerBase
   {
     private readonly IProductService _productService;
-    private readonly IRestaurantService _restaurantService;
+    private readonly IBusinessService _businessService;
 
-    public ProductsController(IProductService productService, IRestaurantService restaurantService)
+    public ProductsController(IProductService productService, IBusinessService businessService)
     {
       _productService = productService;
-      _restaurantService = restaurantService;
+      _businessService = businessService;
     }
 
     // GET: api/Products
@@ -37,13 +36,19 @@ namespace UberEatsBackend.Controllers
     public async Task<ActionResult<ProductDto>> GetProduct(int id)
     {
       var product = await _productService.GetProductByIdAsync(id);
-
       if (product == null)
-      {
         return NotFound();
-      }
 
       return Ok(product);
+    }
+
+    // GET: api/Products/Business/5
+    [HttpGet("Business/{businessId}")]
+    [AllowAnonymous]
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetProductsByBusiness(int businessId)
+    {
+      var products = await _productService.GetProductsByBusinessIdAsync(businessId);
+      return Ok(products);
     }
 
     // GET: api/Products/Restaurant/5
@@ -66,103 +71,79 @@ namespace UberEatsBackend.Controllers
 
     // POST: api/Products
     [HttpPost]
-    [Authorize(Roles = "Restaurant,Admin")]
+    [Authorize(Roles = "Admin,Business")]
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductDto createProductDto)
     {
-      // Verify that the user has permission to create products in this category
-      if (!await CanManageProduct(createProductDto.CategoryId))
-      {
+      // Verify authorization for the business that owns the category
+      if (!await IsAuthorizedForProductCategory(createProductDto.CategoryId))
         return Forbid();
-      }
 
-      var createdProduct = await _productService.CreateProductAsync(createProductDto);
-      return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, createdProduct);
+      try
+      {
+        var createdProduct = await _productService.CreateProductAsync(createProductDto);
+        return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, createdProduct);
+      }
+      catch (KeyNotFoundException ex)
+      {
+        return NotFound(ex.Message);
+      }
     }
 
     // PUT: api/Products/5
     [HttpPut("{id}")]
-    [Authorize(Roles = "Restaurant,Admin")]
-    public async Task<IActionResult> UpdateProduct(int id, UpdateProductDto updateProductDto)
+    [Authorize(Roles = "Admin,Business")]
+    public async Task<ActionResult<ProductDto>> UpdateProduct(int id, UpdateProductDto updateProductDto)
     {
-      // Verify that the product exists
       var existingProduct = await _productService.GetProductByIdAsync(id);
       if (existingProduct == null)
-      {
         return NotFound();
-      }
 
-      // Verify that the user has permission to update this product
-      if (!await CanManageProduct(existingProduct.CategoryId))
-      {
+      // Verify authorization
+      if (!await IsAuthorizedForBusiness(existingProduct.BusinessId))
         return Forbid();
-      }
 
       var updatedProduct = await _productService.UpdateProductAsync(id, updateProductDto);
       if (updatedProduct == null)
-      {
         return NotFound();
-      }
 
       return Ok(updatedProduct);
     }
 
     // DELETE: api/Products/5
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Restaurant,Admin")]
+    [Authorize(Roles = "Admin,Business")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-      // Verify that the product exists
       var existingProduct = await _productService.GetProductByIdAsync(id);
       if (existingProduct == null)
-      {
         return NotFound();
-      }
 
-      // Verify that the user has permission to delete this product
-      if (!await CanManageProduct(existingProduct.CategoryId))
-      {
+      // Verify authorization
+      if (!await IsAuthorizedForBusiness(existingProduct.BusinessId))
         return Forbid();
-      }
 
       var result = await _productService.DeleteProductAsync(id);
       if (!result)
-      {
         return NotFound();
-      }
 
       return NoContent();
     }
 
-    // Helper method to verify permissions
-    private async Task<bool> CanManageProduct(int categoryId)
+    private async Task<bool> IsAuthorizedForBusiness(int businessId)
     {
-      // Administrators always can manage products
-      if (User.IsInRole("Admin"))
-      {
-        return true;
-      }
+      var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+      var userRole = User.FindFirstValue(ClaimTypes.Role);
 
-      // For restaurant users, check if the category belongs to one of their restaurants
-      if (User.IsInRole("Restaurant"))
-      {
-        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+      if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+        return false;
 
-        // Get all accessible restaurants for this user
-        // Note: In the new architecture, we use GetRestaurantsForAdminAsync instead of GetRestaurantsByOwnerAsync
-        var restaurants = await _restaurantService.GetRestaurantsForAdminAsync(userId);
+      return await _businessService.IsUserAuthorizedForBusiness(businessId, userId, userRole ?? "");
+    }
 
-        // Verify if the category belongs to any of these restaurants
-        foreach (var restaurant in restaurants)
-        {
-          var products = await _productService.GetProductsByRestaurantIdAsync(restaurant.Id);
-          if (products.Any(p => p.CategoryId == categoryId))
-          {
-            return true;
-          }
-        }
-      }
-
-      return false;
+    private async Task<bool> IsAuthorizedForProductCategory(int categoryId)
+    {
+      var userRole = User.FindFirstValue(ClaimTypes.Role);
+      return userRole == "Admin" || userRole == "Business";
     }
   }
 }

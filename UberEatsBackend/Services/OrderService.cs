@@ -103,8 +103,8 @@ namespace UberEatsBackend.Services
         {
           ProductId = item.ProductId,
           Quantity = item.Quantity,
-          UnitPrice = product.Price,
-          Subtotal = product.Price * item.Quantity
+          UnitPrice = product.BasePrice, // FIXED: Cambiar Price por BasePrice
+          Subtotal = product.BasePrice * item.Quantity // FIXED: Cambiar Price por BasePrice
         };
 
         orderItems.Add(orderItem);

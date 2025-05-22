@@ -25,19 +25,37 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddSingleton(appSettings);
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
+
+// User services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+// Restaurant services
 builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
+
+// Order services
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+
+// Product services (updated)
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+// RestaurantProduct services (new)
+builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
+builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
+
+// Business services
 builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
+
+// Storage and promotion services
 builder.Services.AddScoped<IStorageService, LocalStorageService>();
 builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
+
+// Generic repository
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
 // Configurar CORS para permitir peticiones del cliente Vue.js
 builder.Services.AddCors(options =>
@@ -166,7 +184,7 @@ builder.Services.AddSwaggerGen(c =>
   {
     Title = "UberEatsBackend API",
     Version = "v1",
-    Description = "API para aplicación tipo UberEats",
+    Description = "API para aplicación tipo UberEats - Restructured without Menus",
     Contact = new OpenApiContact
     {
       Name = "Soporte",
@@ -215,7 +233,7 @@ if (app.Environment.IsDevelopment())
       // Asegurarse de que la base de datos exista
       context.Database.EnsureCreated();
 
-      Console.WriteLine("✅ Base de datos inicializada correctamente");
+      Console.WriteLine("✅ Base de datos inicializada correctamente (Estructura sin Menus)");
     }
     catch (Exception ex)
     {
@@ -232,7 +250,7 @@ if (app.Environment.IsDevelopment())
   app.UseSwagger();
   app.UseSwaggerUI(c =>
   {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1 (No Menus)");
 
     // Usar la ruta por defecto para Swagger UI - http://localhost:5290/swagger
     c.RoutePrefix = "swagger";
@@ -271,6 +289,7 @@ app.MapControllers();
 Console.WriteLine($"🚀 Servidor iniciado en modo {app.Environment.EnvironmentName}");
 Console.WriteLine($"🔐 JWT configurado con Issuer: {appSettings.JwtIssuer}, Audience: {appSettings.JwtAudience}");
 Console.WriteLine($"📚 Documentación Swagger disponible en: http://localhost:5290/swagger");
+Console.WriteLine($"🏗️ Estructura actualizada: Business -> Category -> Product + RestaurantProduct (pivot)");
 
 try
 {

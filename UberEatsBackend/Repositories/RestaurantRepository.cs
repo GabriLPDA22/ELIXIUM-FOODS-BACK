@@ -17,9 +17,7 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Menus)
-              .ThenInclude(m => m.Categories)
-                  .ThenInclude(c => c.Products)
+          .Include(r => r.Business) // FIXED: Incluir Business en lugar de Menus
           .FirstOrDefaultAsync(r => r.Id == id);
     }
 
@@ -27,6 +25,7 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
+          .Include(r => r.Business) // FIXED: Incluir Business
           .OrderByDescending(r => r.AverageRating)
           .Take(limit)
           .ToListAsync();
@@ -36,6 +35,7 @@ namespace UberEatsBackend.Repositories
     {
       var queryable = _context.Restaurants
           .Include(r => r.Address)
+          .Include(r => r.Business) // FIXED: Incluir Business
           .AsQueryable();
 
       if (!string.IsNullOrEmpty(query))
@@ -58,6 +58,7 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
+          .Include(r => r.Business) // FIXED: Incluir Business
           .Where(r => r.Tipo == tipo)
           .OrderBy(r => r.Name)
           .ToListAsync();
@@ -68,6 +69,7 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
+          .Include(r => r.Business) // FIXED: Incluir Business
           .Where(r => r.BusinessId == businessId)
           .OrderBy(r => r.Name)
           .ToListAsync();

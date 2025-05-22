@@ -16,7 +16,7 @@ namespace UberEatsBackend.Models
     public int EstimatedDeliveryTime { get; set; }
     public int Tipo { get; set; } = 1;
 
-    // Only associate with Business, not User
+    // Relación con Business
     public int? BusinessId { get; set; }
     public Business? Business { get; set; }
 
@@ -43,8 +43,8 @@ namespace UberEatsBackend.Models
     public Address Address { get; set; } = null!;
 
     // Navigation properties
-    public List<Menu> Menus { get; set; } = new List<Menu>();
     public List<Order> Orders { get; set; } = new List<Order>();
+    public List<RestaurantProduct> RestaurantProducts { get; set; } = new List<RestaurantProduct>();
 
     public Restaurant()
     {

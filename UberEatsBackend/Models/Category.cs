@@ -8,9 +8,9 @@ namespace UberEatsBackend.Models
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
 
-        // MenuId puede ser null para categorías de exploración
-        public int? MenuId { get; set; }
-        public Menu? Menu { get; set; }
+        // Ahora pertenece directamente al Business
+        public int BusinessId { get; set; }
+        public Business Business { get; set; } = null!;
 
         // Navigation properties
         public List<Product> Products { get; set; } = new List<Product>();

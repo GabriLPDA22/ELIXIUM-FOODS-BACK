@@ -7,12 +7,6 @@ using UberEatsBackend.Models;
 
 namespace UberEatsBackend.Repositories
 {
-  public interface IProductRepository : IRepository<Product>
-  {
-    Task<List<Product>> GetProductsByRestaurantIdAsync(int restaurantId);
-    Task<List<Product>> GetProductsByCategoryIdAsync(int categoryId);
-    Task<Product?> GetProductWithDetailsAsync(int productId);
-  }
 
   public class ProductRepository : Repository<Product>, IProductRepository
   {
@@ -20,29 +14,18 @@ namespace UberEatsBackend.Repositories
     {
     }
 
-    public async Task<List<Product>> GetProductsByRestaurantIdAsync(int restaurantId)
+    public async Task<List<Product>> GetProductsByBusinessIdAsync(int businessId)
     {
-      // Obtener todos los menús del restaurante
-      var menuIds = await _context.Menus
-          .Where(m => m.RestaurantId == restaurantId)
-          .Select(m => m.Id)
-          .ToListAsync();
-
-      // Obtener todas las categorías de esos menús
-      var categoryIds = await _context.Categories
-          .Where(c => menuIds.Contains(c.MenuId ?? 0))
-          .Select(c => c.Id)
-          .ToListAsync();
-
-      // Obtener todos los productos de esas categorías
       return await _context.Products
-          .Where(p => categoryIds.Contains(p.CategoryId))
+          .Include(p => p.Category)
+          .Where(p => p.Category.BusinessId == businessId)
           .ToListAsync();
     }
 
     public async Task<List<Product>> GetProductsByCategoryIdAsync(int categoryId)
     {
       return await _context.Products
+          .Include(p => p.Category)
           .Where(p => p.CategoryId == categoryId)
           .ToListAsync();
     }
@@ -51,16 +34,25 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Products
           .Include(p => p.Category)
-              .ThenInclude(c => c.Menu)
-                  .ThenInclude(m => m.Restaurant)
+              .ThenInclude(c => c.Business)
           .FirstOrDefaultAsync(p => p.Id == productId);
     }
 
-    // Sobrescribir GetAllAsync para incluir detalles
+    public async Task<List<Product>> GetProductsByRestaurantIdAsync(int restaurantId)
+    {
+      return await _context.RestaurantProducts
+          .Where(rp => rp.RestaurantId == restaurantId)
+          .Include(rp => rp.Product)
+              .ThenInclude(p => p.Category)
+          .Select(rp => rp.Product)
+          .ToListAsync();
+    }
+
     public override async Task<List<Product>> GetAllAsync()
     {
       return await _context.Products
           .Include(p => p.Category)
+              .ThenInclude(c => c.Business)
           .ToListAsync();
     }
   }

@@ -40,6 +40,9 @@ namespace UberEatsBackend.Models
     public virtual User? User { get; set; }
     public List<Restaurant> Restaurants { get; set; } = new List<Restaurant>();
 
+    // Nueva relación directa con categorías y productos
+    public List<Category> Categories { get; set; } = new List<Category>();
+
     public Business()
     {
       CreatedAt = DateTime.UtcNow;
