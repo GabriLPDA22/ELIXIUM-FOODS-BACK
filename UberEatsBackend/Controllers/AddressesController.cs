@@ -63,35 +63,35 @@ namespace UberEatsBackend.Controllers
     }
 
     [HttpPost]
-    public async Task<ActionResult<ExtendedAddressDto>> CreateAddress(CreateExtendedAddressDto createAddressDto)
-    {
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-      var user = await _userRepository.GetByIdAsync(userId);
+public async Task<ActionResult<ExtendedAddressDto>> CreateAddress(CreateExtendedAddressDto createAddressDto)
+{
+  var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+  var user = await _userRepository.GetByIdAsync(userId);
 
-      if (user == null)
-        return NotFound();
+  if (user == null)
+    return NotFound();
 
-      var address = _mapper.Map<Address>(createAddressDto);
-      address.UserId = userId;
+  var address = _mapper.Map<Address>(createAddressDto);
+  address.UserId = userId; // Asegurar que se asigne el UserId para direcciones de usuarios
 
-      // Si esta dirección se marca como predeterminada, desmarcar las demás
-      if (address.IsDefault)
-      {
-        await UnsetDefaultAddresses(userId);
-      }
-      // Si es la primera dirección, marcarla como predeterminada automáticamente
-      else if (!await _context.Addresses.AnyAsync(a => a.UserId == userId))
-      {
-        address.IsDefault = true;
-      }
+  // Si esta dirección se marca como predeterminada, desmarcar las demás
+  if (address.IsDefault)
+  {
+    await UnsetDefaultAddresses(userId);
+  }
+  // Si es la primera dirección, marcarla como predeterminada automáticamente
+  else if (!await _context.Addresses.AnyAsync(a => a.UserId == userId))
+  {
+    address.IsDefault = true;
+  }
 
-      var createdAddress = await _addressRepository.AddAsync(address);
+  var createdAddress = await _addressRepository.AddAsync(address);
 
-      return CreatedAtAction(
-          nameof(GetAddressById),
-          new { id = createdAddress.Id },
-          _mapper.Map<ExtendedAddressDto>(createdAddress));
-    }
+  return CreatedAtAction(
+      nameof(GetAddressById),
+      new { id = createdAddress.Id },
+      _mapper.Map<ExtendedAddressDto>(createdAddress));
+}
 
     [HttpPut("{id}")]
     public async Task<ActionResult<ExtendedAddressDto>> UpdateAddress(int id, CreateExtendedAddressDto updateAddressDto)

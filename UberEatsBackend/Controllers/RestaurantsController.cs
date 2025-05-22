@@ -139,124 +139,134 @@ namespace UberEatsBackend.Controllers
       return NoContent();
     }
 
-    // POST: api/restaurants
-    [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<RestaurantDto>> CreateRestaurant(CreateRestaurantDto createRestaurantDto)
+   // POST: api/restaurants
+[HttpPost]
+[Authorize(Roles = "Admin")]
+public async Task<ActionResult<RestaurantDto>> CreateRestaurant(CreateRestaurantDto createRestaurantDto)
+{
+  try
+  {
+    if (createRestaurantDto.BusinessId.HasValue)
     {
-      try
+      var business = await _context.Businesses.FindAsync(createRestaurantDto.BusinessId.Value);
+      if (business == null)
       {
-        if (createRestaurantDto.BusinessId.HasValue)
-        {
-          var business = await _context.Businesses.FindAsync(createRestaurantDto.BusinessId.Value);
-          if (business == null)
-          {
-            return BadRequest($"Business with ID {createRestaurantDto.BusinessId.Value} does not exist");
-          }
-        }
-
-        using var transaction = await _context.Database.BeginTransactionAsync();
-
-        try
-        {
-          var address = new Address
-          {
-            Name = "Restaurant Address",
-            Street = createRestaurantDto.Address.Street,
-            City = createRestaurantDto.Address.City,
-            State = createRestaurantDto.Address.State,
-            ZipCode = createRestaurantDto.Address.ZipCode,
-            Latitude = createRestaurantDto.Address.Latitude,
-            Longitude = createRestaurantDto.Address.Longitude,
-            IsDefault = false
-          };
-
-          var addressDto = createRestaurantDto.Address;
-
-          if (addressDto.GetType().GetProperty("Number") != null)
-          {
-            var prop = addressDto.GetType().GetProperty("Number");
-            address.Number = prop.GetValue(addressDto) as string ?? string.Empty;
-          }
-
-          if (addressDto.GetType().GetProperty("Interior") != null)
-          {
-            var prop = addressDto.GetType().GetProperty("Interior");
-            address.Interior = prop.GetValue(addressDto) as string ?? string.Empty;
-          }
-
-          if (addressDto.GetType().GetProperty("Neighborhood") != null)
-          {
-            var prop = addressDto.GetType().GetProperty("Neighborhood");
-            address.Neighborhood = prop.GetValue(addressDto) as string ?? string.Empty;
-          }
-
-          if (addressDto.GetType().GetProperty("Phone") != null)
-          {
-            var prop = addressDto.GetType().GetProperty("Phone");
-            address.Phone = prop.GetValue(addressDto) as string ?? string.Empty;
-          }
-
-          _context.Addresses.Add(address);
-          await _context.SaveChangesAsync();
-
-          var restaurant = new Restaurant
-          {
-            Name = createRestaurantDto.Name,
-            Description = createRestaurantDto.Description,
-            LogoUrl = createRestaurantDto.LogoUrl,
-            CoverImageUrl = createRestaurantDto.CoverImageUrl,
-            IsOpen = createRestaurantDto.IsOpen,
-            DeliveryFee = createRestaurantDto.DeliveryFee,
-            EstimatedDeliveryTime = createRestaurantDto.EstimatedDeliveryTime,
-            Tipo = createRestaurantDto.Tipo,
-            BusinessId = createRestaurantDto.BusinessId,
-            AddressId = address.Id,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-          };
-
-          _context.Restaurants.Add(restaurant);
-          await _context.SaveChangesAsync();
-
-          await transaction.CommitAsync();
-          Console.WriteLine("Restaurant created successfully");
-
-          var restaurantDto = _mapper.Map<RestaurantDto>(restaurant);
-          return CreatedAtAction(nameof(GetRestaurant), new { id = restaurant.Id }, restaurantDto);
-        }
-        catch (Exception ex)
-        {
-          await transaction.RollbackAsync();
-          Console.WriteLine($"Error creating restaurant: {ex.Message}");
-
-          if (ex.InnerException != null)
-          {
-            Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
-          }
-
-          throw;
-        }
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"General error: {ex.Message}");
-
-        if (ex.InnerException != null)
-        {
-          var innerMsg = ex.InnerException.Message;
-
-          if (innerMsg.Contains("23503"))
-          {
-            return StatusCode(500, $"Foreign key error. Please verify that all related IDs exist in the database.");
-          }
-
-          return StatusCode(500, $"Internal error: {innerMsg}");
-        }
-
-        return StatusCode(500, $"Internal error: {ex.Message}");
+        return BadRequest($"Business with ID {createRestaurantDto.BusinessId.Value} does not exist");
       }
     }
+
+    using var transaction = await _context.Database.BeginTransactionAsync();
+
+    try
+    {
+      // Crear la dirección del restaurante (sin UserId ya que es para el restaurante)
+      var address = new Address
+      {
+        Name = "Restaurant Address",
+        Street = createRestaurantDto.Address.Street,
+        City = createRestaurantDto.Address.City,
+        State = createRestaurantDto.Address.State,
+        ZipCode = createRestaurantDto.Address.ZipCode,
+        Latitude = createRestaurantDto.Address.Latitude,
+        Longitude = createRestaurantDto.Address.Longitude,
+        IsDefault = false,
+        UserId = null // Direcciones de restaurantes no tienen UserId
+      };
+
+      // Mapear campos adicionales si existen en el DTO
+      var addressDto = createRestaurantDto.Address;
+
+      if (addressDto.GetType().GetProperty("Number") != null)
+      {
+        var prop = addressDto.GetType().GetProperty("Number");
+        address.Number = prop.GetValue(addressDto) as string ?? string.Empty;
+      }
+
+      if (addressDto.GetType().GetProperty("Interior") != null)
+      {
+        var prop = addressDto.GetType().GetProperty("Interior");
+        address.Interior = prop.GetValue(addressDto) as string ?? string.Empty;
+      }
+
+      if (addressDto.GetType().GetProperty("Neighborhood") != null)
+      {
+        var prop = addressDto.GetType().GetProperty("Neighborhood");
+        address.Neighborhood = prop.GetValue(addressDto) as string ?? string.Empty;
+      }
+
+      if (addressDto.GetType().GetProperty("Phone") != null)
+      {
+        var prop = addressDto.GetType().GetProperty("Phone");
+        address.Phone = prop.GetValue(addressDto) as string ?? string.Empty;
+      }
+
+      _context.Addresses.Add(address);
+      await _context.SaveChangesAsync();
+
+      // Crear el restaurante
+      var restaurant = new Restaurant
+      {
+        Name = createRestaurantDto.Name,
+        Description = createRestaurantDto.Description,
+        LogoUrl = createRestaurantDto.LogoUrl,
+        CoverImageUrl = createRestaurantDto.CoverImageUrl,
+        IsOpen = createRestaurantDto.IsOpen,
+        DeliveryFee = createRestaurantDto.DeliveryFee,
+        EstimatedDeliveryTime = createRestaurantDto.EstimatedDeliveryTime,
+        Tipo = createRestaurantDto.Tipo,
+        BusinessId = createRestaurantDto.BusinessId,
+        AddressId = address.Id,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+      };
+
+      _context.Restaurants.Add(restaurant);
+      await _context.SaveChangesAsync();
+
+      await transaction.CommitAsync();
+      Console.WriteLine("Restaurant created successfully");
+
+      // Cargar el restaurante con sus relaciones para el DTO
+      var createdRestaurant = await _context.Restaurants
+        .Include(r => r.Address)
+        .Include(r => r.Business)
+        .FirstAsync(r => r.Id == restaurant.Id);
+
+      var restaurantDto = _mapper.Map<RestaurantDto>(createdRestaurant);
+      return CreatedAtAction(nameof(GetRestaurant), new { id = restaurant.Id }, restaurantDto);
+    }
+    catch (Exception ex)
+    {
+      await transaction.RollbackAsync();
+      Console.WriteLine($"Error creating restaurant: {ex.Message}");
+
+      if (ex.InnerException != null)
+      {
+        Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+      }
+
+      throw;
+    }
+  }
+  catch (Exception ex)
+  {
+    Console.WriteLine($"General error: {ex.Message}");
+
+    if (ex.InnerException != null)
+    {
+      var innerMsg = ex.InnerException.Message;
+
+      if (innerMsg.Contains("23503"))
+      {
+        return StatusCode(500, $"Foreign key error. Please verify that all related IDs exist in the database.");
+      }
+
+      return StatusCode(500, $"Internal error: {innerMsg}");
+    }
+
+    return StatusCode(500, $"Internal error: {ex.Message}");
+  }
+}
 
     // DELETE: api/restaurants/5
     [HttpDelete("{id}")]
