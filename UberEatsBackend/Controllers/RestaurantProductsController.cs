@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using UberEatsBackend.Data;
 using UberEatsBackend.DTOs.RestaurantProduct;
 using UberEatsBackend.Services;
 
@@ -15,13 +17,16 @@ namespace UberEatsBackend.Controllers
   {
     private readonly IRestaurantProductService _restaurantProductService;
     private readonly IBusinessService _businessService;
+    private readonly ApplicationDbContext _context;
 
     public RestaurantProductsController(
         IRestaurantProductService restaurantProductService,
-        IBusinessService businessService)
+        IBusinessService businessService,
+        ApplicationDbContext context)
     {
       _restaurantProductService = restaurantProductService;
       _businessService = businessService;
+      _context = context;
     }
 
     // GET: api/restaurants/5/products
@@ -38,6 +43,10 @@ namespace UberEatsBackend.Controllers
       {
         return NotFound(ex.Message);
       }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
     // GET: api/restaurants/5/products/10
@@ -45,11 +54,18 @@ namespace UberEatsBackend.Controllers
     [AllowAnonymous]
     public async Task<ActionResult<RestaurantProductDto>> GetRestaurantProduct(int restaurantId, int productId)
     {
-      var product = await _restaurantProductService.GetRestaurantProductAsync(restaurantId, productId);
-      if (product == null)
-        return NotFound();
+      try
+      {
+        var product = await _restaurantProductService.GetRestaurantProductAsync(restaurantId, productId);
+        if (product == null)
+          return NotFound($"Product with ID {productId} not found in restaurant with ID {restaurantId}");
 
-      return Ok(product);
+        return Ok(product);
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
     // POST: api/restaurants/5/products
@@ -60,7 +76,7 @@ namespace UberEatsBackend.Controllers
         CreateRestaurantProductDto createDto)
     {
       if (!await IsAuthorizedForRestaurant(restaurantId))
-        return Forbid();
+        return Forbid("You are not authorized to manage products for this restaurant");
 
       try
       {
@@ -77,6 +93,10 @@ namespace UberEatsBackend.Controllers
       {
         return BadRequest(ex.Message);
       }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
     // PUT: api/restaurants/5/products/10
@@ -88,13 +108,24 @@ namespace UberEatsBackend.Controllers
         UpdateRestaurantProductDto updateDto)
     {
       if (!await IsAuthorizedForRestaurant(restaurantId))
-        return Forbid();
+        return Forbid("You are not authorized to manage products for this restaurant");
 
-      var updatedProduct = await _restaurantProductService.UpdateRestaurantProductAsync(restaurantId, productId, updateDto);
-      if (updatedProduct == null)
-        return NotFound();
+      try
+      {
+        var updatedProduct = await _restaurantProductService.UpdateRestaurantProductAsync(restaurantId, productId, updateDto);
+        if (updatedProduct == null)
+          return NotFound($"Product with ID {productId} not found in restaurant with ID {restaurantId}");
 
-      return Ok(updatedProduct);
+        return Ok(updatedProduct);
+      }
+      catch (KeyNotFoundException ex)
+      {
+        return NotFound(ex.Message);
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
     // DELETE: api/restaurants/5/products/10
@@ -103,13 +134,20 @@ namespace UberEatsBackend.Controllers
     public async Task<IActionResult> RemoveProductFromRestaurant(int restaurantId, int productId)
     {
       if (!await IsAuthorizedForRestaurant(restaurantId))
-        return Forbid();
+        return Forbid("You are not authorized to manage products for this restaurant");
 
-      var result = await _restaurantProductService.RemoveProductFromRestaurantAsync(restaurantId, productId);
-      if (!result)
-        return NotFound();
+      try
+      {
+        var result = await _restaurantProductService.RemoveProductFromRestaurantAsync(restaurantId, productId);
+        if (!result)
+          return NotFound($"Product with ID {productId} not found in restaurant with ID {restaurantId}");
 
-      return NoContent();
+        return NoContent();
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
     // POST: api/restaurants/5/products/bulk
@@ -120,7 +158,7 @@ namespace UberEatsBackend.Controllers
         BulkAssignProductsDto bulkDto)
     {
       if (!await IsAuthorizedForRestaurant(restaurantId))
-        return Forbid();
+        return Forbid("You are not authorized to manage products for this restaurant");
 
       try
       {
@@ -131,8 +169,13 @@ namespace UberEatsBackend.Controllers
       {
         return NotFound(ex.Message);
       }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
+    // Método privado para verificar autorización
     private async Task<bool> IsAuthorizedForRestaurant(int restaurantId)
     {
       var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -141,12 +184,29 @@ namespace UberEatsBackend.Controllers
       if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
         return false;
 
+      // Los administradores pueden acceder a cualquier restaurante
       if (userRole == "Admin")
         return true;
 
-      // For Business users, check if they own the restaurant through business
-      // This would need additional logic to get businessId from restaurantId
-      return false; // Simplified for now
+      // Para usuarios Business, verificar que el restaurante pertenezca a su negocio
+      if (userRole == "Business")
+      {
+        try
+        {
+          var restaurant = await _context.Restaurants
+            .Include(r => r.Business)
+            .FirstOrDefaultAsync(r => r.Id == restaurantId);
+
+          if (restaurant?.Business?.UserId == userId)
+            return true;
+        }
+        catch (Exception)
+        {
+          return false;
+        }
+      }
+
+      return false;
     }
   }
 }

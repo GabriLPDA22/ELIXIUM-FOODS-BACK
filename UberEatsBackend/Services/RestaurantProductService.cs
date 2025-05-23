@@ -72,18 +72,48 @@ namespace UberEatsBackend.Services
 
     public async Task<RestaurantProductDto?> UpdateRestaurantProductAsync(int restaurantId, int productId, UpdateRestaurantProductDto updateDto)
     {
+      // Buscar la relación existente
       var restaurantProduct = await _restaurantProductRepository.GetByRestaurantAndProductAsync(restaurantId, productId);
+
       if (restaurantProduct == null)
-        return null;
+      {
+        // Si no existe, verificar que el producto y restaurante existan antes de crear
+        var product = await _productRepository.GetByIdAsync(productId);
+        if (product == null)
+          throw new KeyNotFoundException($"Product with ID {productId} not found");
 
-      restaurantProduct.Price = updateDto.Price;
-      restaurantProduct.IsAvailable = updateDto.IsAvailable;
-      restaurantProduct.StockQuantity = updateDto.StockQuantity;
-      restaurantProduct.Notes = updateDto.Notes;
-      restaurantProduct.UpdatedAt = DateTime.UtcNow;
+        var restaurant = await _restaurantRepository.GetByIdAsync(restaurantId);
+        if (restaurant == null)
+          throw new KeyNotFoundException($"Restaurant with ID {restaurantId} not found");
 
-      await _restaurantProductRepository.UpdateAsync(restaurantProduct);
-      return _mapper.Map<RestaurantProductDto>(restaurantProduct);
+        // Crear nueva relación
+        restaurantProduct = new RestaurantProduct
+        {
+          RestaurantId = restaurantId,
+          ProductId = productId,
+          Price = updateDto.Price,
+          IsAvailable = updateDto.IsAvailable,
+          StockQuantity = updateDto.StockQuantity,
+          Notes = updateDto.Notes,
+          CreatedAt = DateTime.UtcNow,
+          UpdatedAt = DateTime.UtcNow
+        };
+
+        var createdRestaurantProduct = await _restaurantProductRepository.AddAsync(restaurantProduct);
+        return _mapper.Map<RestaurantProductDto>(createdRestaurantProduct);
+      }
+      else
+      {
+        // Actualizar relación existente
+        restaurantProduct.Price = updateDto.Price;
+        restaurantProduct.IsAvailable = updateDto.IsAvailable;
+        restaurantProduct.StockQuantity = updateDto.StockQuantity;
+        restaurantProduct.Notes = updateDto.Notes;
+        restaurantProduct.UpdatedAt = DateTime.UtcNow;
+
+        await _restaurantProductRepository.UpdateAsync(restaurantProduct);
+        return _mapper.Map<RestaurantProductDto>(restaurantProduct);
+      }
     }
 
     public async Task<bool> RemoveProductFromRestaurantAsync(int restaurantId, int productId)
