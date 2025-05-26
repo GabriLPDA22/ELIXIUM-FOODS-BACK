@@ -13,6 +13,8 @@ namespace UberEatsBackend.Models
     public string PhoneNumber { get; set; } = string.Empty;
     public string Role { get; set; } = "Customer"; // Admin, Customer, Restaurant, DeliveryPerson, Business
 
+    public bool IsActive { get; set; } = true;
+
     public string? RefreshToken { get; set; }  // Token de refresco actual
     public DateTime? RefreshTokenExpiry { get; set; }  // Fecha de expiración
 

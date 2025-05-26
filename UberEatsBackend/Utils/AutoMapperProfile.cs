@@ -18,10 +18,13 @@ namespace UberEatsBackend.Utils
     {
       // User mappings
       CreateMap<User, UserDto>()
-          .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses));
+          .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses))
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive));
       CreateMap<RegisterRequestDto, User>();
-      CreateMap<CreateUserDto, User>();
-      CreateMap<UpdateUserDto, User>();
+      CreateMap<CreateUserDto, User>()
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true));
+      CreateMap<UpdateUserDto, User>()
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive));
       CreateMap<UpdateProfileDto, User>();
 
       // Address mappings

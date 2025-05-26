@@ -12,6 +12,7 @@ namespace UberEatsBackend.DTOs.User
     public string LastName { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public List<AddressDto> Addresses { get; set; } = new List<AddressDto>();
 
