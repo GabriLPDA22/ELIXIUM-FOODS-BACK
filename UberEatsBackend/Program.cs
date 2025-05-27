@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Amazon.S3;
 using UberEatsBackend.Data;
 using UberEatsBackend.Repositories;
 using UberEatsBackend.Services;
@@ -15,13 +16,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Configuración de AppSettings
 var appSettingsSection = builder.Configuration.GetSection("AppSettings");
 builder.Services.Configure<AppSettings>(appSettingsSection);
-var appSettings = appSettingsSection.Get<AppSettings>();
+var appSettings = appSettingsSection.Get<AppSettings>() ?? new AppSettings();
 
 // Configurar DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(appSettings.ConnectionString));
 
-// Registro de repositorios y servicios
+// Registro de repositorios y servicios básicos
 builder.Services.AddSingleton(appSettings);
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
@@ -38,11 +39,11 @@ builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 
-// Product services (updated)
+// Product services
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
 
-// RestaurantProduct services (new)
+// RestaurantProduct services
 builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
 builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
 
@@ -50,14 +51,53 @@ builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>(
 builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
 
-// Storage and promotion services
-builder.Services.AddScoped<IStorageService, LocalStorageService>();
+// Promotion services
 builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
 
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-// Configurar CORS para permitir peticiones del cliente Vue.js
+// =====================================
+// CONFIGURACIÓN DE ALMACENAMIENTO E IMÁGENES
+// =====================================
+
+// Configurar AWS S3
+var awsSettings = builder.Configuration.GetSection("AWS").Get<AWSSettings>();
+if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
+{
+    builder.Services.AddSingleton<IAmazonS3>(provider =>
+    {
+        var config = new AmazonS3Config
+        {
+            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region)
+        };
+
+        return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+    });
+    Console.WriteLine($"✅ AWS S3 configurado para región: {awsSettings.Region}");
+}
+
+// Configurar el servicio de almacenamiento según la configuración
+var storageSettings = builder.Configuration.GetSection("StorageSettings").Get<StorageSettings>();
+if (storageSettings?.UseS3Storage == true && awsSettings != null)
+{
+    builder.Services.AddScoped<IStorageService, S3StorageService>();
+    Console.WriteLine($"✅ Almacenamiento S3 habilitado - Bucket: {awsSettings.S3?.BucketName}");
+}
+else
+{
+    builder.Services.AddScoped<IStorageService, LocalStorageService>();
+    Console.WriteLine("✅ Almacenamiento local habilitado");
+}
+
+// Registrar el servicio genérico de imágenes
+builder.Services.AddScoped<IImageService, ImageService>();
+Console.WriteLine("✅ Servicio genérico de imágenes registrado");
+
+// =====================================
+// CONFIGURACIÓN DE CORS
+// =====================================
+
 builder.Services.AddCors(options =>
 {
   options.AddPolicy("AllowVueApp", builder =>
@@ -69,7 +109,10 @@ builder.Services.AddCors(options =>
   });
 });
 
-// Configurar autenticación JWT con registro de eventos para depuración
+// =====================================
+// CONFIGURACIÓN DE AUTENTICACIÓN JWT
+// =====================================
+
 builder.Services.AddAuthentication(options =>
 {
   options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -176,7 +219,10 @@ builder.Services.AddAutoMapper(typeof(Program));
 // Controladores
 builder.Services.AddControllers();
 
-// Configurar Swagger/OpenAPI
+// =====================================
+// CONFIGURACIÓN DE SWAGGER/OPENAPI
+// =====================================
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -184,7 +230,7 @@ builder.Services.AddSwaggerGen(c =>
   {
     Title = "UberEatsBackend API",
     Version = "v1",
-    Description = "API para aplicación tipo UberEats - Restructured without Menus",
+    Description = "API para aplicación tipo UberEats con servicio de imágenes genérico",
     Contact = new OpenApiContact
     {
       Name = "Soporte",
@@ -218,6 +264,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// =====================================
+// CONSTRUCCIÓN DE LA APLICACIÓN
+// =====================================
+
 var app = builder.Build();
 
 // Inicializar la base de datos (opcional)
@@ -233,7 +283,7 @@ if (app.Environment.IsDevelopment())
       // Asegurarse de que la base de datos exista
       context.Database.EnsureCreated();
 
-      Console.WriteLine("✅ Base de datos inicializada correctamente (Estructura sin Menus)");
+      Console.WriteLine("✅ Base de datos inicializada correctamente");
     }
     catch (Exception ex)
     {
@@ -244,15 +294,16 @@ if (app.Environment.IsDevelopment())
   }
 }
 
-// Configuración de middleware
+// =====================================
+// CONFIGURACIÓN DE MIDDLEWARE
+// =====================================
+
 if (app.Environment.IsDevelopment())
 {
   app.UseSwagger();
   app.UseSwaggerUI(c =>
   {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1 (No Menus)");
-
-    // Usar la ruta por defecto para Swagger UI - http://localhost:5290/swagger
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1");
     c.RoutePrefix = "swagger";
   });
 
@@ -269,11 +320,19 @@ if (!app.Environment.IsDevelopment())
   app.UseHttpsRedirection();
 }
 
+// Servir archivos estáticos (para almacenamiento local)
+app.UseStaticFiles();
+
 // Middleware de diagnóstico para verificar todos los encabezados de autorización
 app.Use(async (context, next) =>
 {
   var authHeader = context.Request.Headers["Authorization"].ToString();
-  Console.WriteLine($"[DEBUG MIDDLEWARE] Cabecera Authorization: '{authHeader}'");
+  
+  // Solo mostrar log si hay un header de autorización para evitar spam
+  if (!string.IsNullOrEmpty(authHeader))
+  {
+    Console.WriteLine($"[DEBUG] Authorization Header: '{authHeader.Substring(0, Math.Min(50, authHeader.Length))}...'");
+  }
 
   await next();
 });
@@ -285,11 +344,42 @@ app.UseAuthorization();
 // Mapear controladores
 app.MapControllers();
 
-// Mensaje de inicio para confirmación
-Console.WriteLine($"🚀 Servidor iniciado en modo {app.Environment.EnvironmentName}");
-Console.WriteLine($"🔐 JWT configurado con Issuer: {appSettings.JwtIssuer}, Audience: {appSettings.JwtAudience}");
-Console.WriteLine($"📚 Documentación Swagger disponible en: http://localhost:5290/swagger");
-Console.WriteLine($"🏗️ Estructura actualizada: Business -> Category -> Product + RestaurantProduct (pivot)");
+// =====================================
+// MENSAJES DE INICIO Y EJECUCIÓN
+// =====================================
+
+Console.WriteLine("=".PadRight(60, '='));
+Console.WriteLine("🚀 UBEREATS BACKEND INICIADO");
+Console.WriteLine("=".PadRight(60, '='));
+Console.WriteLine($"🏗️  Entorno: {app.Environment.EnvironmentName}");
+Console.WriteLine($"🔐 JWT Issuer: {appSettings.JwtIssuer}");
+Console.WriteLine($"🔐 JWT Audience: {appSettings.JwtAudience}");
+Console.WriteLine($"📚 Swagger: http://localhost:5290/swagger");
+Console.WriteLine($"🌐 CORS: http://localhost:5173");
+
+// Información del almacenamiento
+if (storageSettings?.UseS3Storage == true)
+{
+    Console.WriteLine($"☁️  Almacenamiento: AWS S3 ({awsSettings?.S3?.BucketName})");
+    Console.WriteLine($"🌍 Región S3: {awsSettings?.Region}");
+}
+else
+{
+    Console.WriteLine("💾 Almacenamiento: Local (wwwroot/uploads)");
+}
+
+Console.WriteLine("📁 Servicios registrados:");
+Console.WriteLine("   ├── 🏢 Business Service");
+Console.WriteLine("   ├── 🍽️  Restaurant Service");
+Console.WriteLine("   ├── 🥘 Product Service");
+Console.WriteLine("   ├── 🔗 RestaurantProduct Service");
+Console.WriteLine("   ├── 📦 Order Service");
+Console.WriteLine("   ├── 👤 User Service");
+Console.WriteLine("   ├── 🖼️  Image Service (Genérico)");
+Console.WriteLine("   ├── 💾 Storage Service");
+Console.WriteLine("   └── 🎟️  Promotion Service");
+
+Console.WriteLine("=".PadRight(60, '='));
 
 try
 {

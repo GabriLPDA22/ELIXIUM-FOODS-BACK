@@ -98,5 +98,22 @@ namespace UberEatsBackend.Services
       await _productRepository.DeleteAsync(product);
       return true;
     }
+    public async Task<bool> UpdateProductImageAsync(int productId, string? imageUrl)
+{
+    try
+    {
+        var product = await _productRepository.GetByIdAsync(productId);
+        if (product == null)
+            return false;
+
+        product.ImageUrl = imageUrl ?? string.Empty;
+        await _productRepository.UpdateAsync(product);
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
   }
 }

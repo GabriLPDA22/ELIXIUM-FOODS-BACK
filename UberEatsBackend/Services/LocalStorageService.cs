@@ -1,4 +1,4 @@
-// UberEatsBackend/Services/LocalStorageService.cs
+// UberEatsBackend/Services/LocalStorageService.cs - ACTUALIZADO
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -24,10 +24,17 @@ namespace UberEatsBackend.Services
             }
         }
 
-        public async Task<string> SaveFileAsync(string base64File, string fileName)
+        public async Task<string> SaveFileAsync(string base64File, string fileName, string folder = "general")
         {
             if (string.IsNullOrEmpty(base64File))
                 return string.Empty;
+
+            // Create folder if it doesn't exist
+            var folderPath = Path.Combine(_uploadsFolder, folder);
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
 
             // Remove the data:image/xyz;base64, part
             string base64Data = base64File;
@@ -38,14 +45,20 @@ namespace UberEatsBackend.Services
 
             // Generate a unique filename
             string uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
-            string filePath = Path.Combine(_uploadsFolder, uniqueFileName);
+            string filePath = Path.Combine(folderPath, uniqueFileName);
 
             // Convert base64 to bytes and save
             byte[] fileBytes = Convert.FromBase64String(base64Data);
             await File.WriteAllBytesAsync(filePath, fileBytes);
 
             // Return URL path for accessing the file
-            return $"/uploads/{uniqueFileName}";
+            return $"/uploads/{folder}/{uniqueFileName}";
+        }
+
+        // Backward compatibility method
+        public async Task<string> SaveFileAsync(string base64File, string fileName)
+        {
+            return await SaveFileAsync(base64File, fileName, "general");
         }
 
         public async Task DeleteFileAsync(string fileUrl)
@@ -53,14 +66,22 @@ namespace UberEatsBackend.Services
             if (string.IsNullOrEmpty(fileUrl))
                 return;
 
-            // Extract filename from URL
-            string fileName = Path.GetFileName(fileUrl);
-            string filePath = Path.Combine(_uploadsFolder, fileName);
-
-            // Delete the file if it exists
-            if (File.Exists(filePath))
+            try
             {
-                await Task.Run(() => File.Delete(filePath));
+                // Extract relative path from URL
+                var relativePath = fileUrl.TrimStart('/');
+                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", relativePath);
+
+                // Delete the file if it exists
+                if (File.Exists(filePath))
+                {
+                    await Task.Run(() => File.Delete(filePath));
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't throw
+                Console.WriteLine($"Error deleting local file: {ex.Message}");
             }
         }
     }
