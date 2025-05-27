@@ -13,16 +13,46 @@ using UberEatsBackend.Utils;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuración de AppSettings
+// =====================================
+// CONFIGURACIÓN DE APPSETTINGS
+// =====================================
+
 var appSettingsSection = builder.Configuration.GetSection("AppSettings");
 builder.Services.Configure<AppSettings>(appSettingsSection);
 var appSettings = appSettingsSection.Get<AppSettings>() ?? new AppSettings();
 
-// Configurar DbContext
+// Configurar AWS Settings por separado
+var awsSection = builder.Configuration.GetSection("AWS");
+var awsSettings = awsSection.Get<AWSSettings>();
+
+// Storage Settings
+var storageSection = builder.Configuration.GetSection("StorageSettings");
+var storageSettings = storageSection.Get<StorageSettings>();
+
+// Asegurar que AWS esté en AppSettings
+if (awsSettings != null)
+{
+    appSettings.AWS = awsSettings;
+}
+
+Console.WriteLine("🔧 Configuración cargada:");
+Console.WriteLine($"   JWT Issuer: {appSettings.JwtIssuer}");
+Console.WriteLine($"   JWT Audience: {appSettings.JwtAudience}");
+Console.WriteLine($"   AWS Region: {awsSettings?.Region}");
+Console.WriteLine($"   S3 Bucket: {awsSettings?.S3?.BucketName}");
+Console.WriteLine($"   Use S3 Storage: {storageSettings?.UseS3Storage}");
+
+// =====================================
+// CONFIGURACIÓN DE BASE DE DATOS
+// =====================================
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(appSettings.ConnectionString));
 
-// Registro de repositorios y servicios básicos
+// =====================================
+// REGISTRO DE SERVICIOS BÁSICOS
+// =====================================
+
 builder.Services.AddSingleton(appSettings);
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
@@ -58,41 +88,92 @@ builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
 // =====================================
-// CONFIGURACIÓN DE ALMACENAMIENTO E IMÁGENES
+// CONFIGURACIÓN DE AWS S3
 // =====================================
 
-// Configurar AWS S3
-var awsSettings = builder.Configuration.GetSection("AWS").Get<AWSSettings>();
 if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
 {
+    Console.WriteLine($"🔧 Configurando AWS S3...");
+    Console.WriteLine($"   Region: {awsSettings.Region}");
+    Console.WriteLine($"   Bucket: {awsSettings.S3?.BucketName}");
+    Console.WriteLine($"   AccessKey: {awsSettings.AccessKey?.Substring(0, 8)}...");
+    
     builder.Services.AddSingleton<IAmazonS3>(provider =>
     {
-        var config = new AmazonS3Config
+        try
         {
-            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region)
-        };
+            var config = new AmazonS3Config
+            {
+                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+                Timeout = TimeSpan.FromMinutes(5),
+                MaxErrorRetry = 3,
+                UseHttp = false // Forzar HTTPS
+            };
 
-        return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+            var s3Client = new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+            Console.WriteLine($"✅ Cliente S3 creado exitosamente");
+            return s3Client;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"🔴 Error creando cliente S3: {ex.Message}");
+            Console.WriteLine($"🔴 StackTrace: {ex.StackTrace}");
+            throw;
+        }
     });
+    
     Console.WriteLine($"✅ AWS S3 configurado para región: {awsSettings.Region}");
-}
-
-// Configurar el servicio de almacenamiento según la configuración
-var storageSettings = builder.Configuration.GetSection("StorageSettings").Get<StorageSettings>();
-if (storageSettings?.UseS3Storage == true && awsSettings != null)
-{
-    builder.Services.AddScoped<IStorageService, S3StorageService>();
-    Console.WriteLine($"✅ Almacenamiento S3 habilitado - Bucket: {awsSettings.S3?.BucketName}");
 }
 else
 {
-    builder.Services.AddScoped<IStorageService, LocalStorageService>();
-    Console.WriteLine("✅ Almacenamiento local habilitado");
+    Console.WriteLine($"⚠️ AWS Settings no encontrados o incompletos");
+    if (awsSettings == null) Console.WriteLine("   - awsSettings es null");
+    if (string.IsNullOrEmpty(awsSettings?.AccessKey)) Console.WriteLine("   - AccessKey está vacío");
+    if (string.IsNullOrEmpty(awsSettings?.SecretKey)) Console.WriteLine("   - SecretKey está vacío");
+}
+
+// =====================================
+// CONFIGURACIÓN DE SERVICIOS DE ALMACENAMIENTO
+// =====================================
+
+if (storageSettings?.UseS3Storage == true && awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
+{
+    builder.Services.AddScoped<IStorageService, S3StorageService>();
+    Console.WriteLine($"✅ S3 Storage Service registrado - Bucket: {awsSettings.S3?.BucketName}");
+}
+else
+{
+    Console.WriteLine($"🔴 ERROR: S3 Storage requerido pero no configurado correctamente");
+    Console.WriteLine($"   UseS3Storage: {storageSettings?.UseS3Storage}");
+    Console.WriteLine($"   AWS AccessKey válido: {!string.IsNullOrEmpty(awsSettings?.AccessKey)}");
+    Console.WriteLine($"   AWS SecretKey válido: {!string.IsNullOrEmpty(awsSettings?.SecretKey)}");
+    Console.WriteLine($"   S3 Bucket configurado: {!string.IsNullOrEmpty(awsSettings?.S3?.BucketName)}");
+    
+    throw new InvalidOperationException("S3 Storage requerido pero no configurado correctamente. Verifica tu appsettings.json");
 }
 
 // Registrar el servicio genérico de imágenes
 builder.Services.AddScoped<IImageService, ImageService>();
-Console.WriteLine("✅ Servicio genérico de imágenes registrado");
+Console.WriteLine("✅ Image Service registrado");
+
+// =====================================
+// CONFIGURACIÓN DE LOGGING
+// =====================================
+
+builder.Services.AddLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+    logging.AddDebug();
+    if (builder.Environment.IsDevelopment())
+    {
+        logging.SetMinimumLevel(LogLevel.Debug);
+    }
+    else
+    {
+        logging.SetMinimumLevel(LogLevel.Information);
+    }
+});
 
 // =====================================
 // CONFIGURACIÓN DE CORS
@@ -100,14 +181,16 @@ Console.WriteLine("✅ Servicio genérico de imágenes registrado");
 
 builder.Services.AddCors(options =>
 {
-  options.AddPolicy("AllowVueApp", builder =>
-  {
-    builder.WithOrigins("http://localhost:5173") // URL de desarrollo de Vue
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
-  });
+    options.AddPolicy("AllowVueApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173") // URL de desarrollo de Vue
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
 });
+
+Console.WriteLine("✅ CORS configurado para permitir peticiones desde http://localhost:5173");
 
 // =====================================
 // CONFIGURACIÓN DE AUTENTICACIÓN JWT
@@ -115,109 +198,105 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddAuthentication(options =>
 {
-  options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-  options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
-  options.TokenValidationParameters = new TokenValidationParameters
-  {
-    ValidateIssuer = true,
-    ValidateAudience = true,
-    ValidateLifetime = true,
-    ValidateIssuerSigningKey = true,
-    ValidIssuer = appSettings.JwtIssuer,
-    ValidAudience = appSettings.JwtAudience,
-    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appSettings.JwtSecret)),
-    ClockSkew = TimeSpan.FromMinutes(5) // 5 minutos de tolerancia para problemas de sincronización de reloj
-  };
-
-  // Configuración para depuración de problemas de JWT
-  options.Events = new JwtBearerEvents
-  {
-    OnMessageReceived = context =>
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-      var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-      Console.WriteLine($"📝 Encabezado de autorización recibido: {authHeader}");
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = appSettings.JwtIssuer,
+        ValidAudience = appSettings.JwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appSettings.JwtSecret)),
+        ClockSkew = TimeSpan.FromMinutes(5) // 5 minutos de tolerancia para problemas de sincronización de reloj
+    };
 
-      if (!string.IsNullOrEmpty(authHeader))
-      {
-        // Extraer el token JWT del formato "Bearer {token}"
-        string token = authHeader;
-        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+    // Configuración para depuración de problemas de JWT
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
         {
-          token = authHeader.Substring("Bearer ".Length).Trim();
-        }
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            
+            if (!string.IsNullOrEmpty(authHeader))
+            {
+                Console.WriteLine($"📝 Authorization Header recibido: {authHeader.Substring(0, Math.Min(30, authHeader.Length))}...");
+                
+                // Extraer el token JWT del formato "Bearer {token}"
+                string token = authHeader;
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    token = authHeader.Substring("Bearer ".Length).Trim();
+                }
 
-        // Verificar si el token parece ser un JWT válido (debe tener dos puntos)
-        if (token.Count(c => c == '.') != 2)
+                // Verificar si el token parece ser un JWT válido (debe tener dos puntos)
+                if (token.Count(c => c == '.') == 2)
+                {
+                    context.Token = token;
+                    Console.WriteLine($"✅ Token JWT válido extraído");
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ Token no tiene formato JWT válido");
+                }
+            }
+
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
         {
-          Console.WriteLine("⚠️ Advertencia: El token no tiene el formato JWT válido (header.payload.signature)");
-          // En desarrollo, permitimos probar incluso con tokens mal formados
-          if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-          {
-            Console.WriteLine("⚠️ Estamos en desarrollo, intentando procesar el token de todos modos");
-            context.Token = token;
-          }
-        }
-        else
+            Console.WriteLine($"🔴 Error de autenticación: {context.Exception.Message}");
+
+            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+            {
+                context.Response.Headers.Append("Token-Expired", "true");
+                Console.WriteLine("🔴 El token ha expirado");
+            }
+            else if (context.Exception.GetType() == typeof(SecurityTokenInvalidSignatureException))
+            {
+                Console.WriteLine("🔴 La firma del token es inválida");
+            }
+            else if (context.Exception is SecurityTokenMalformedException)
+            {
+                Console.WriteLine("🔴 El token está malformado");
+            }
+
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
         {
-          // Token parece válido, asignarlo
-          context.Token = token;
-          Console.WriteLine($"✅ Token JWT válido extraído: {token.Substring(0, Math.Min(30, token.Length))}...");
+            Console.WriteLine($"✅ Token validado correctamente para usuario: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"⚠️ Desafío de autenticación: {context.AuthenticateFailure?.Message ?? "Sin detalles"}");
+            return Task.CompletedTask;
         }
-      }
-      else
-      {
-        Console.WriteLine("⚠️ No se encontró encabezado de autorización");
-      }
-
-      return Task.CompletedTask;
-    },
-    OnAuthenticationFailed = context =>
-    {
-      Console.WriteLine($"🔴 Error de autenticación: {context.Exception.Message}");
-
-      if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-      {
-        context.Response.Headers.Append("Token-Expired", "true");
-        Console.WriteLine("🔴 El token ha expirado");
-      }
-      else if (context.Exception.GetType() == typeof(SecurityTokenInvalidSignatureException))
-      {
-        Console.WriteLine("🔴 La firma del token es inválida");
-      }
-      else if (context.Exception is SecurityTokenMalformedException)
-      {
-        Console.WriteLine("🔴 El token está malformado. Debe tener el formato de JWT válido con tres secciones separadas por puntos.");
-      }
-
-      // Log detallado para depuración
-      Console.WriteLine($"StackTrace: {context.Exception.StackTrace}");
-
-      return Task.CompletedTask;
-    },
-    OnTokenValidated = context =>
-    {
-      Console.WriteLine($"✅ Token validado correctamente para usuario: {context.Principal?.Identity?.Name}");
-      return Task.CompletedTask;
-    },
-    OnChallenge = context =>
-    {
-      Console.WriteLine($"⚠️ Desafío de autenticación activado: {context.AuthenticateFailure?.Message ?? "Sin detalles de error"}");
-      return Task.CompletedTask;
-    }
-  };
+    };
 });
 
 // Agregar autorización
 builder.Services.AddAuthorization();
+Console.WriteLine("✅ Autenticación y autorización JWT configuradas");
 
-// AutoMapper
+// =====================================
+// AUTOMAPPER
+// =====================================
+
 builder.Services.AddAutoMapper(typeof(Program));
+Console.WriteLine("✅ AutoMapper configurado");
 
-// Controladores
+// =====================================
+// CONTROLADORES
+// =====================================
+
 builder.Services.AddControllers();
+Console.WriteLine("✅ Controladores registrados");
 
 // =====================================
 // CONFIGURACIÓN DE SWAGGER/OPENAPI
@@ -226,29 +305,29 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-  c.SwaggerDoc("v1", new OpenApiInfo
-  {
-    Title = "UberEatsBackend API",
-    Version = "v1",
-    Description = "API para aplicación tipo UberEats con servicio de imágenes genérico",
-    Contact = new OpenApiContact
+    c.SwaggerDoc("v1", new OpenApiInfo
     {
-      Name = "Soporte",
-      Email = "soporte@ubereatsclone.com"
-    }
-  });
+        Title = "UberEatsBackend API",
+        Version = "v1",
+        Description = "API para aplicación tipo UberEats con servicio de imágenes S3",
+        Contact = new OpenApiContact
+        {
+            Name = "Soporte",
+            Email = "soporte@ubereatsclone.com"
+        }
+    });
 
-  // Configurar Swagger para usar JWT
-  c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-  {
-    Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-    Name = "Authorization",
-    In = ParameterLocation.Header,
-    Type = SecuritySchemeType.ApiKey,
-    Scheme = "Bearer"
-  });
+    // Configurar Swagger para usar JWT
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
 
-  c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -270,28 +349,54 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Inicializar la base de datos (opcional)
+// =====================================
+// INICIALIZACIÓN DE BASE DE DATOS
+// =====================================
+
 if (app.Environment.IsDevelopment())
 {
-  using (var scope = app.Services.CreateScope())
-  {
-    var services = scope.ServiceProvider;
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            context.Database.EnsureCreated();
+            Console.WriteLine("✅ Base de datos inicializada correctamente");
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "🔴 Error al inicializar la base de datos");
+            Console.WriteLine($"🔴 Error al inicializar la base de datos: {ex.Message}");
+        }
+    }
+}
+
+// =====================================
+// VERIFICACIÓN DE SERVICIOS CRÍTICOS
+// =====================================
+
+using (var scope = app.Services.CreateScope())
+{
     try
     {
-      var context = services.GetRequiredService<ApplicationDbContext>();
-
-      // Asegurarse de que la base de datos exista
-      context.Database.EnsureCreated();
-
-      Console.WriteLine("✅ Base de datos inicializada correctamente");
+        // Verificar que S3 esté funcionando
+        var s3Client = scope.ServiceProvider.GetRequiredService<IAmazonS3>();
+        await s3Client.ListBucketsAsync();
+        Console.WriteLine("✅ Conexión a S3 verificada exitosamente");
+        
+        // Verificar que el servicio de imágenes esté registrado
+        var imageService = scope.ServiceProvider.GetRequiredService<IImageService>();
+        Console.WriteLine("✅ Image Service verificado exitosamente");
+        
     }
     catch (Exception ex)
     {
-      var logger = services.GetRequiredService<ILogger<Program>>();
-      logger.LogError(ex, "🔴 Error al inicializar la base de datos");
-      Console.WriteLine($"🔴 Error al inicializar la base de datos: {ex.Message}");
+        Console.WriteLine($"🔴 Error verificando servicios críticos: {ex.Message}");
+        Console.WriteLine($"🔴 StackTrace: {ex.StackTrace}");
+        throw; // Detener la aplicación si los servicios críticos fallan
     }
-  }
 }
 
 // =====================================
@@ -300,42 +405,44 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
-  app.UseSwagger();
-  app.UseSwaggerUI(c =>
-  {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1");
-    c.RoutePrefix = "swagger";
-  });
-
-  Console.WriteLine("✅ Swagger habilitado en /swagger");
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1");
+        c.RoutePrefix = "swagger";
+        c.DisplayRequestDuration();
+    });
+    Console.WriteLine("✅ Swagger habilitado en /swagger");
 }
 
 // Middleware CORS - importante colocarlo antes de los middleware de autenticación
 app.UseCors("AllowVueApp");
-Console.WriteLine("✅ CORS configurado para permitir peticiones desde http://localhost:5173");
 
 // En desarrollo, podemos desactivar la redirección HTTPS para simplificar
 if (!app.Environment.IsDevelopment())
 {
-  app.UseHttpsRedirection();
+    app.UseHttpsRedirection();
 }
 
-// Servir archivos estáticos (para almacenamiento local)
+// Servir archivos estáticos (para cualquier contenido estático que necesitemos)
 app.UseStaticFiles();
 
-// Middleware de diagnóstico para verificar todos los encabezados de autorización
-app.Use(async (context, next) =>
+// Middleware de diagnóstico para debugging de requests (solo en desarrollo)
+if (app.Environment.IsDevelopment())
 {
-  var authHeader = context.Request.Headers["Authorization"].ToString();
-  
-  // Solo mostrar log si hay un header de autorización para evitar spam
-  if (!string.IsNullOrEmpty(authHeader))
-  {
-    Console.WriteLine($"[DEBUG] Authorization Header: '{authHeader.Substring(0, Math.Min(50, authHeader.Length))}...'");
-  }
+    app.Use(async (context, next) =>
+    {
+        var authHeader = context.Request.Headers["Authorization"].ToString();
+        
+        // Solo mostrar log si hay un header de autorización para evitar spam
+        if (!string.IsNullOrEmpty(authHeader))
+        {
+            Console.WriteLine($"[DEBUG] {context.Request.Method} {context.Request.Path} - Auth: {authHeader.Substring(0, Math.Min(30, authHeader.Length))}...");
+        }
 
-  await next();
-});
+        await next();
+    });
+}
 
 // Middleware de autenticación antes de autorización - orden importante
 app.UseAuthentication();
@@ -348,46 +455,47 @@ app.MapControllers();
 // MENSAJES DE INICIO Y EJECUCIÓN
 // =====================================
 
-Console.WriteLine("=".PadRight(60, '='));
-Console.WriteLine("🚀 UBEREATS BACKEND INICIADO");
-Console.WriteLine("=".PadRight(60, '='));
+Console.WriteLine("=".PadLeft(80, '='));
+Console.WriteLine("🚀 UBEREATS BACKEND INICIADO EXITOSAMENTE");
+Console.WriteLine("=".PadLeft(80, '='));
 Console.WriteLine($"🏗️  Entorno: {app.Environment.EnvironmentName}");
 Console.WriteLine($"🔐 JWT Issuer: {appSettings.JwtIssuer}");
 Console.WriteLine($"🔐 JWT Audience: {appSettings.JwtAudience}");
 Console.WriteLine($"📚 Swagger: http://localhost:5290/swagger");
 Console.WriteLine($"🌐 CORS: http://localhost:5173");
+Console.WriteLine($"☁️  Almacenamiento: AWS S3 ({awsSettings?.S3?.BucketName})");
+Console.WriteLine($"🌍 Región S3: {awsSettings?.Region}");
+Console.WriteLine($"🔗 Base URL S3: {awsSettings?.S3?.BaseUrl}");
 
-// Información del almacenamiento
-if (storageSettings?.UseS3Storage == true)
-{
-    Console.WriteLine($"☁️  Almacenamiento: AWS S3 ({awsSettings?.S3?.BucketName})");
-    Console.WriteLine($"🌍 Región S3: {awsSettings?.Region}");
-}
-else
-{
-    Console.WriteLine("💾 Almacenamiento: Local (wwwroot/uploads)");
-}
-
-Console.WriteLine("📁 Servicios registrados:");
+Console.WriteLine("\n📁 Servicios registrados:");
 Console.WriteLine("   ├── 🏢 Business Service");
-Console.WriteLine("   ├── 🍽️  Restaurant Service");
+Console.WriteLine("   ├── 🍽️  Restaurant Service");  
 Console.WriteLine("   ├── 🥘 Product Service");
 Console.WriteLine("   ├── 🔗 RestaurantProduct Service");
 Console.WriteLine("   ├── 📦 Order Service");
 Console.WriteLine("   ├── 👤 User Service");
-Console.WriteLine("   ├── 🖼️  Image Service (Genérico)");
-Console.WriteLine("   ├── 💾 Storage Service");
+Console.WriteLine("   ├── 🖼️  Image Service (S3)");
+Console.WriteLine("   ├── ☁️  S3 Storage Service");
 Console.WriteLine("   └── 🎟️  Promotion Service");
 
-Console.WriteLine("=".PadRight(60, '='));
+Console.WriteLine("\n🔧 Endpoints principales:");
+Console.WriteLine("   ├── POST /api/images/upload/base64");
+Console.WriteLine("   ├── POST /api/images/upload");
+Console.WriteLine("   ├── DELETE /api/images");
+Console.WriteLine("   └── POST /api/images/upload/multiple");
+
+Console.WriteLine("=".PadLeft(80, '='));
+Console.WriteLine("🎯 Backend listo para recibir peticiones...");
+Console.WriteLine("=".PadLeft(80, '='));
 
 try
 {
-  app.Run();
-  Console.WriteLine("✅ Aplicación finalizada correctamente");
+    app.Run();
+    Console.WriteLine("✅ Aplicación finalizada correctamente");
 }
 catch (Exception ex)
 {
-  Console.WriteLine($"🔴 Error fatal al ejecutar la aplicación: {ex.Message}");
-  Console.WriteLine(ex.StackTrace);
+    Console.WriteLine($"🔴 Error fatal al ejecutar la aplicación: {ex.Message}");
+    Console.WriteLine($"🔴 StackTrace: {ex.StackTrace}");
+    throw;
 }

@@ -8,15 +8,13 @@ namespace UberEatsBackend.Utils
         public string JwtAudience { get; set; } = string.Empty;
         public string ConnectionString { get; set; } = string.Empty;
         public AWSSettings AWS { get; set; } = new AWSSettings();
-        public StorageSettings StorageSettings { get; set; } = new StorageSettings();
     }
 
     public class AWSSettings
     {
-        public string Region { get; set; } = string.Empty;
+        public string Region { get; set; } = "us-east-1";
         public string AccessKey { get; set; } = string.Empty;
         public string SecretKey { get; set; } = string.Empty;
-        public string SessionToken { get; set; } = string.Empty;
         public S3Settings S3 { get; set; } = new S3Settings();
     }
 
@@ -28,6 +26,6 @@ namespace UberEatsBackend.Utils
 
     public class StorageSettings
     {
-        public bool UseS3Storage { get; set; } = false;
+        public bool UseS3Storage { get; set; } = true;
     }
 }

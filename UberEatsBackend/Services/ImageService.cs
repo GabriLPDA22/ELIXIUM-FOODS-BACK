@@ -200,11 +200,11 @@ namespace UberEatsBackend.Services
             var extension = GetExtensionFromContentType(contentType);
             var nameWithoutExtension = Path.GetFileNameWithoutExtension(originalFileName) ?? "image";
             
-            // Sanitizar el nombre del archivo - CORREGIDO: convertir a string array primero
+            // Sanitizar el nombre del archivo - CORREGIDO
             var validChars = nameWithoutExtension
                 .Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_')
                 .Take(50) // Limitar longitud
-                .ToArray(); // Convertir a array primero
+                .ToArray(); // Convertir a array
             
             var sanitizedName = new string(validChars); // Crear string del array
             
@@ -218,7 +218,8 @@ namespace UberEatsBackend.Services
         {
             return contentType switch
             {
-                "image/jpeg" or "image/jpg" => ".jpg",
+                "image/jpeg" => ".jpg",
+                "image/jpg" => ".jpg",
                 "image/png" => ".png",
                 "image/gif" => ".gif",
                 "image/webp" => ".webp",
