@@ -16,30 +16,32 @@ namespace UberEatsBackend.Repositories
       _dbSet = context.Set<T>();
     }
 
-    public async Task<List<T>> GetAllAsync()
+    public DbSet<T> Entities => _dbSet;
+
+    public virtual async Task<List<T>> GetAllAsync()
     {
       return await _dbSet.ToListAsync();
     }
 
-    public async Task<T?> GetByIdAsync(int id)
+    public virtual async Task<T?> GetByIdAsync(int id)
     {
       return await _dbSet.FindAsync(id);
     }
 
-    public async Task<T> AddAsync(T entity)
+    public virtual async Task<T> AddAsync(T entity)
     {
       await _dbSet.AddAsync(entity);
       await _context.SaveChangesAsync();
       return entity;
     }
 
-    public async Task UpdateAsync(T entity)
+    public virtual async Task UpdateAsync(T entity)
     {
       _dbSet.Update(entity);
       await _context.SaveChangesAsync();
     }
 
-    public async Task DeleteAsync(T entity)
+    public virtual async Task DeleteAsync(T entity)
     {
       _dbSet.Remove(entity);
       await _context.SaveChangesAsync();

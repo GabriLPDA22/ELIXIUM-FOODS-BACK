@@ -40,243 +40,353 @@ namespace UberEatsBackend.Controllers
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<UserDto>> CreateUser(CreateUserDto createUserDto)
     {
-      // Verificar si el email ya existe
-      var existingUser = await _userRepository.GetByEmailAsync(createUserDto.Email);
-      if (existingUser != null)
-        return BadRequest(new { message = "El correo electrónico ya está registrado" });
-
-      // Validar el rol
-      string role = createUserDto.Role.ToLower() switch
+      try
       {
-        "admin" => "Admin",
-        "restaurant" => "Restaurant",
-        "deliveryperson" => "DeliveryPerson",
-        _ => "Customer"
-      };
+        // Verificar si el email ya existe
+        var existingUser = await _userRepository.GetByEmailAsync(createUserDto.Email);
+        if (existingUser != null)
+          return BadRequest(new { message = "El correo electrónico ya está registrado" });
 
-      // Crear el usuario
-      var user = new User
+        // Validar el rol
+        string role = createUserDto.Role.ToLower() switch
+        {
+          "admin" => "Admin",
+          "restaurant" => "Restaurant",
+          "deliveryperson" => "DeliveryPerson",
+          "business" => "Business",
+          _ => "Customer"
+        };
+
+        // Crear el usuario
+        var user = new User
+        {
+          Email = createUserDto.Email,
+          PasswordHash = BC.HashPassword(createUserDto.Password),
+          FirstName = createUserDto.FirstName,
+          LastName = createUserDto.LastName,
+          PhoneNumber = createUserDto.PhoneNumber,
+          Role = role,
+          IsActive = true
+        };
+
+        var createdUser = await _userRepository.AddAsync(user);
+
+        return CreatedAtAction(
+            nameof(GetUserById),
+            new { id = createdUser.Id },
+            _mapper.Map<UserDto>(createdUser)
+        );
+      }
+      catch (Exception ex)
       {
-        Email = createUserDto.Email,
-        PasswordHash = BC.HashPassword(createUserDto.Password),
-        FirstName = createUserDto.FirstName,
-        LastName = createUserDto.LastName,
-        PhoneNumber = createUserDto.PhoneNumber,
-        Role = role
-      };
-
-      var createdUser = await _userRepository.AddAsync(user);
-
-      return CreatedAtAction(
-          nameof(GetUserById),
-          new { id = createdUser.Id },
-          _mapper.Map<UserDto>(createdUser)
-      );
+        return BadRequest(new { message = "Error al crear usuario: " + ex.Message });
+      }
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<UserDto>> GetUserById(int id)
     {
-      // Verificar que el usuario logueado pueda acceder a este recurso
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-      var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+      try
+      {
+        // Verificar que el usuario logueado pueda acceder a este recurso
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-      if (userId != id && userRole != "Admin")
-        return Forbid();
+        if (userId != id && userRole != "Admin")
+          return Forbid();
 
-      var user = await _userRepository.GetWithAddressesAsync(id);
+        var user = await _userRepository.GetWithAddressesAsync(id);
 
-      if (user == null)
-        return NotFound();
+        if (user == null)
+          return NotFound();
 
-      return Ok(_mapper.Map<UserDto>(user));
+        return Ok(_mapper.Map<UserDto>(user));
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al obtener usuario: " + ex.Message });
+      }
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(int id, UpdateUserDto updateUserDto)
+    public async Task<ActionResult<UserDto>> UpdateUser(int id, UpdateUserDto updateUserDto)
     {
-      // Verificar que el usuario logueado pueda actualizar este recurso
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-      var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+      try
+      {
+        // Verificar que el usuario logueado pueda actualizar este recurso
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-      if (userId != id && userRole != "Admin")
-        return Forbid();
+        if (userId != id && userRole != "Admin")
+          return Forbid();
 
-      var user = await _userRepository.GetByIdAsync(id);
+        var user = await _userRepository.GetByIdAsync(id);
 
-      if (user == null)
-        return NotFound();
+        if (user == null)
+          return NotFound(new { message = "Usuario no encontrado" });
 
-      user.FirstName = updateUserDto.FirstName;
-      user.LastName = updateUserDto.LastName;
-      user.PhoneNumber = updateUserDto.PhoneNumber;
-      user.UpdatedAt = System.DateTime.UtcNow;
+        // Actualizar campos básicos
+        user.FirstName = updateUserDto.FirstName;
+        user.LastName = updateUserDto.LastName;
+        user.PhoneNumber = updateUserDto.PhoneNumber;
 
-      await _userRepository.UpdateAsync(user);
+        // Solo admins pueden cambiar roles e IsActive
+        if (userRole == "Admin")
+        {
+          if (!string.IsNullOrEmpty(updateUserDto.Role))
+          {
+            string role = updateUserDto.Role.ToLower() switch
+            {
+              "admin" => "Admin",
+              "restaurant" => "Restaurant",
+              "deliveryperson" => "DeliveryPerson",
+              "business" => "Business",
+              _ => "Customer"
+            };
+            user.Role = role;
+          }
 
-      return NoContent();
+          user.IsActive = updateUserDto.IsActive;
+        }
+
+        user.UpdatedAt = System.DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+
+        return Ok(_mapper.Map<UserDto>(user));
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al actualizar usuario: " + ex.Message });
+      }
+    }
+
+    [HttpPut("{id}/toggle-status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<UserDto>> ToggleUserStatus(int id)
+    {
+      try
+      {
+        var user = await _userRepository.GetByIdAsync(id);
+
+        if (user == null)
+          return NotFound(new { message = "Usuario no encontrado" });
+
+        user.IsActive = !user.IsActive;
+        user.UpdatedAt = System.DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+
+        return Ok(_mapper.Map<UserDto>(user));
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al cambiar estado del usuario: " + ex.Message });
+      }
     }
 
     [HttpPut("profile")]
     public async Task<ActionResult<UserDto>> UpdateProfile(UpdateProfileDto updateProfileDto)
     {
-      // Obtener ID del usuario actual
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-      var user = await _userRepository.GetByIdAsync(userId);
-
-      if (user == null)
-        return NotFound(new { message = "Usuario no encontrado" });
-
-      // Actualizar campos básicos
-      user.FirstName = updateProfileDto.FirstName;
-      user.LastName = updateProfileDto.LastName;
-      user.PhoneNumber = updateProfileDto.PhoneNumber;
-
-      // Campos opcionales
-      if (!string.IsNullOrEmpty(updateProfileDto.Birthdate))
+      try
       {
-        if (DateTime.TryParse(updateProfileDto.Birthdate, out DateTime birthdate))
+        // Obtener ID del usuario actual
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var user = await _userRepository.GetByIdAsync(userId);
+
+        if (user == null)
+          return NotFound(new { message = "Usuario no encontrado" });
+
+        // Actualizar campos básicos
+        user.FirstName = updateProfileDto.FirstName;
+        user.LastName = updateProfileDto.LastName;
+        user.PhoneNumber = updateProfileDto.PhoneNumber;
+
+        // Campos opcionales
+        if (!string.IsNullOrEmpty(updateProfileDto.Birthdate))
         {
-          user.Birthdate = birthdate;
+          if (DateTime.TryParse(updateProfileDto.Birthdate, out DateTime birthdate))
+          {
+            user.Birthdate = birthdate;
+          }
         }
+
+        user.Bio = updateProfileDto.Bio;
+        user.PhotoURL = updateProfileDto.PhotoURL;
+
+        // Preferencias alimentarias (guardar como JSON)
+        if (updateProfileDto.DietaryPreferences != null && updateProfileDto.DietaryPreferences.Count > 0)
+        {
+          user.DietaryPreferencesJson = JsonSerializer.Serialize(updateProfileDto.DietaryPreferences);
+        }
+        else
+        {
+          user.DietaryPreferencesJson = null;
+        }
+
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
+
+        // Convertir a DTO y devolver
+        var userDto = _mapper.Map<UserDto>(user);
+
+        // Agregar campos adicionales si es necesario
+        if (user.Birthdate.HasValue)
+        {
+          userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+        }
+
+        userDto.Bio = user.Bio;
+        userDto.PhotoURL = user.PhotoURL;
+
+        // Deserializar preferencias alimentarias
+        if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+        {
+          userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+        }
+
+        return Ok(userDto);
       }
-
-      user.Bio = updateProfileDto.Bio;
-      user.PhotoURL = updateProfileDto.PhotoURL;
-
-      // Preferencias alimentarias (guardar como JSON)
-      if (updateProfileDto.DietaryPreferences != null && updateProfileDto.DietaryPreferences.Count > 0)
+      catch (Exception ex)
       {
-        user.DietaryPreferencesJson = JsonSerializer.Serialize(updateProfileDto.DietaryPreferences);
+        return BadRequest(new { message = "Error al actualizar perfil: " + ex.Message });
       }
-      else
-      {
-        user.DietaryPreferencesJson = null;
-      }
-
-      user.UpdatedAt = DateTime.UtcNow;
-      await _userRepository.UpdateAsync(user);
-
-      // Convertir a DTO y devolver
-      var userDto = _mapper.Map<UserDto>(user);
-
-      // Agregar campos adicionales si es necesario
-      if (user.Birthdate.HasValue)
-      {
-        userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
-      }
-
-      userDto.Bio = user.Bio;
-      userDto.PhotoURL = user.PhotoURL;
-
-      // Deserializar preferencias alimentarias
-      if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
-      {
-        userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
-      }
-
-      return Ok(userDto);
     }
 
     [HttpPut("{id}/password")]
     public async Task<IActionResult> UpdatePassword(int id, UpdatePasswordDto updatePasswordDto)
     {
-      // Verificar que el usuario logueado pueda actualizar la contraseña
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+      try
+      {
+        // Verificar que el usuario logueado pueda actualizar la contraseña
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-      if (userId != id)
-        return Forbid();
+        if (userId != id)
+          return Forbid();
 
-      var user = await _userRepository.GetByIdAsync(id);
+        var user = await _userRepository.GetByIdAsync(id);
 
-      if (user == null)
-        return NotFound();
+        if (user == null)
+          return NotFound();
 
-      // Verificar contraseña actual
-      bool isCurrentPasswordValid = BC.Verify(updatePasswordDto.CurrentPassword, user.PasswordHash);
-      if (!isCurrentPasswordValid)
-        return BadRequest(new { message = "La contraseña actual es incorrecta" });
+        // Verificar contraseña actual
+        bool isCurrentPasswordValid = BC.Verify(updatePasswordDto.CurrentPassword, user.PasswordHash);
+        if (!isCurrentPasswordValid)
+          return BadRequest(new { message = "La contraseña actual es incorrecta" });
 
-      // Actualizar contraseña
-      user.PasswordHash = BC.HashPassword(updatePasswordDto.NewPassword);
-      user.UpdatedAt = System.DateTime.UtcNow;
-      await _userRepository.UpdateAsync(user);
+        // Actualizar contraseña
+        user.PasswordHash = BC.HashPassword(updatePasswordDto.NewPassword);
+        user.UpdatedAt = System.DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
 
-      return NoContent();
+        return NoContent();
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al actualizar contraseña: " + ex.Message });
+      }
     }
 
     [HttpPut("password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordDto changePasswordDto)
     {
-      // Obtener ID del usuario actual
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-      var user = await _userRepository.GetByIdAsync(userId);
+      try
+      {
+        // Obtener ID del usuario actual
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var user = await _userRepository.GetByIdAsync(userId);
 
-      if (user == null)
-        return NotFound(new { message = "Usuario no encontrado" });
+        if (user == null)
+          return NotFound(new { message = "Usuario no encontrado" });
 
-      // Verificar contraseña actual
-      bool isCurrentPasswordValid = BC.Verify(changePasswordDto.CurrentPassword, user.PasswordHash);
-      if (!isCurrentPasswordValid)
-        return BadRequest(new { message = "La contraseña actual es incorrecta" });
+        // Verificar contraseña actual
+        bool isCurrentPasswordValid = BC.Verify(changePasswordDto.CurrentPassword, user.PasswordHash);
+        if (!isCurrentPasswordValid)
+          return BadRequest(new { message = "La contraseña actual es incorrecta" });
 
-      // Actualizar contraseña
-      user.PasswordHash = BC.HashPassword(changePasswordDto.NewPassword);
-      user.UpdatedAt = System.DateTime.UtcNow;
-      await _userRepository.UpdateAsync(user);
+        // Actualizar contraseña
+        user.PasswordHash = BC.HashPassword(changePasswordDto.NewPassword);
+        user.UpdatedAt = System.DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
 
-      return NoContent();
+        return NoContent();
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al cambiar contraseña: " + ex.Message });
+      }
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteUser(int id)
     {
-      var user = await _userRepository.GetByIdAsync(id);
+      try
+      {
+        var user = await _userRepository.GetByIdAsync(id);
 
-      if (user == null)
-        return NotFound();
+        if (user == null)
+          return NotFound();
 
-      await _userRepository.DeleteAsync(user);
+        await _userRepository.DeleteAsync(user);
 
-      return NoContent();
+        return NoContent();
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al eliminar usuario: " + ex.Message });
+      }
     }
 
     [HttpGet("byRole/{role}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByRole(string role)
     {
-      var users = await _userRepository.GetByRoleAsync(role);
-      return Ok(_mapper.Map<IEnumerable<UserDto>>(users));
+      try
+      {
+        var users = await _userRepository.GetByRoleAsync(role);
+        return Ok(_mapper.Map<IEnumerable<UserDto>>(users));
+      }
+      catch (Exception ex)
+      {
+        return BadRequest(new { message = "Error al obtener usuarios por rol: " + ex.Message });
+      }
     }
 
     [HttpGet("me")]
     public async Task<ActionResult<UserDto>> GetCurrentUser()
     {
-      var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-      var user = await _userRepository.GetWithAddressesAsync(userId);
-
-      if (user == null)
-        return NotFound();
-
-      var userDto = _mapper.Map<UserDto>(user);
-
-      // Agregar campos adicionales
-      if (user.Birthdate.HasValue)
+      try
       {
-        userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var user = await _userRepository.GetWithAddressesAsync(userId);
+
+        if (user == null)
+          return NotFound();
+
+        var userDto = _mapper.Map<UserDto>(user);
+
+        // Agregar campos adicionales
+        if (user.Birthdate.HasValue)
+        {
+          userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+        }
+
+        userDto.Bio = user.Bio;
+        userDto.PhotoURL = user.PhotoURL;
+
+        // Deserializar preferencias alimentarias
+        if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+        {
+          userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+        }
+
+        return Ok(userDto);
       }
-
-      userDto.Bio = user.Bio;
-      userDto.PhotoURL = user.PhotoURL;
-
-      // Deserializar preferencias alimentarias
-      if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+      catch (Exception ex)
       {
-        userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+        return BadRequest(new { message = "Error al obtener usuario actual: " + ex.Message });
       }
-
-      return Ok(userDto);
     }
   }
 }

@@ -1,0 +1,59 @@
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using UberEatsBackend.Data;
+using UberEatsBackend.Models;
+
+namespace UberEatsBackend.Repositories
+{
+
+  public class ProductRepository : Repository<Product>, IProductRepository
+  {
+    public ProductRepository(ApplicationDbContext context) : base(context)
+    {
+    }
+
+    public async Task<List<Product>> GetProductsByBusinessIdAsync(int businessId)
+    {
+      return await _context.Products
+          .Include(p => p.Category)
+          .Where(p => p.Category.BusinessId == businessId)
+          .ToListAsync();
+    }
+
+    public async Task<List<Product>> GetProductsByCategoryIdAsync(int categoryId)
+    {
+      return await _context.Products
+          .Include(p => p.Category)
+          .Where(p => p.CategoryId == categoryId)
+          .ToListAsync();
+    }
+
+    public async Task<Product?> GetProductWithDetailsAsync(int productId)
+    {
+      return await _context.Products
+          .Include(p => p.Category)
+              .ThenInclude(c => c.Business)
+          .FirstOrDefaultAsync(p => p.Id == productId);
+    }
+
+    public async Task<List<Product>> GetProductsByRestaurantIdAsync(int restaurantId)
+    {
+      return await _context.RestaurantProducts
+          .Where(rp => rp.RestaurantId == restaurantId)
+          .Include(rp => rp.Product)
+              .ThenInclude(p => p.Category)
+          .Select(rp => rp.Product)
+          .ToListAsync();
+    }
+
+    public override async Task<List<Product>> GetAllAsync()
+    {
+      return await _context.Products
+          .Include(p => p.Category)
+              .ThenInclude(c => c.Business)
+          .ToListAsync();
+    }
+  }
+}

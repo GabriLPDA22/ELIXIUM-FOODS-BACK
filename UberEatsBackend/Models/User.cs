@@ -11,7 +11,12 @@ namespace UberEatsBackend.Models
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty;
-    public string Role { get; set; } = "Customer"; // Admin, Customer, Restaurant, DeliveryPerson
+    public string Role { get; set; } = "Customer"; // Admin, Customer, Restaurant, DeliveryPerson, Business
+
+    public bool IsActive { get; set; } = true;
+
+    public string? RefreshToken { get; set; }  // Token de refresco actual
+    public DateTime? RefreshTokenExpiry { get; set; }  // Fecha de expiración
 
     private DateTime _createdAt;
     private DateTime _updatedAt;
@@ -19,26 +24,26 @@ namespace UberEatsBackend.Models
 
     public DateTime CreatedAt
     {
-        get => _createdAt;
-        set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
-            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-            value.ToUniversalTime();
+      get => _createdAt;
+      set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
+          DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+          value.ToUniversalTime();
     }
 
     public DateTime UpdatedAt
     {
-        get => _updatedAt;
-        set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
-            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-            value.ToUniversalTime();
+      get => _updatedAt;
+      set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
+          DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+          value.ToUniversalTime();
     }
 
     public DateTime? Birthdate
     {
-        get => _birthdate;
-        set => _birthdate = value?.Kind == DateTimeKind.Unspecified ?
-            DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) :
-            value?.ToUniversalTime();
+      get => _birthdate;
+      set => _birthdate = value?.Kind == DateTimeKind.Unspecified ?
+          DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) :
+          value?.ToUniversalTime();
     }
 
     // Additional profile fields
@@ -48,9 +53,9 @@ namespace UberEatsBackend.Models
 
     // Navigation properties
     public List<Address> Addresses { get; set; } = new List<Address>();
-    public Restaurant? Restaurant { get; set; }
     public List<Order> CustomerOrders { get; set; } = new List<Order>();
     public List<Order> DeliveryOrders { get; set; } = new List<Order>();
+    public Business? Business { get; set; }  // Relación con Business
 
     public User()
     {

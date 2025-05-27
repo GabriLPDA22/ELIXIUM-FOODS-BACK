@@ -14,36 +14,37 @@ namespace UberEatsBackend.Models
     public bool IsOpen { get; set; }
     public decimal DeliveryFee { get; set; }
     public int EstimatedDeliveryTime { get; set; }
+    public int Tipo { get; set; } = 1;
+
+    // Relación con Business
+    public int? BusinessId { get; set; }
+    public Business? Business { get; set; }
 
     private DateTime _createdAt;
     private DateTime _updatedAt;
 
     public DateTime CreatedAt
     {
-        get => _createdAt;
-        set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
-            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-            value.ToUniversalTime();
+      get => _createdAt;
+      set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
+          DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+          value.ToUniversalTime();
     }
 
     public DateTime UpdatedAt
     {
-        get => _updatedAt;
-        set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
-            DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-            value.ToUniversalTime();
+      get => _updatedAt;
+      set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
+          DateTime.SpecifyKind(value, DateTimeKind.Utc) :
+          value.ToUniversalTime();
     }
-
-    // Relaciones
-    public int UserId { get; set; }
-    public User Owner { get; set; } = null!;
 
     public int AddressId { get; set; }
     public Address Address { get; set; } = null!;
 
     // Navigation properties
-    public List<Menu> Menus { get; set; } = new List<Menu>();
     public List<Order> Orders { get; set; } = new List<Order>();
+    public List<RestaurantProduct> RestaurantProducts { get; set; } = new List<RestaurantProduct>();
 
     public Restaurant()
     {

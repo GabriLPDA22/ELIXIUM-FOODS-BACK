@@ -42,7 +42,7 @@ namespace UberEatsBackend.Data.EntityConfigurations
       builder.Property(u => u.UpdatedAt)
           .IsRequired();
 
-      // Nuevos campos para el perfil
+      // New fields for profile
       builder.Property(u => u.Birthdate)
           .IsRequired(false);
 
@@ -56,16 +56,25 @@ namespace UberEatsBackend.Data.EntityConfigurations
           .IsRequired(false)
           .HasMaxLength(255);
 
-      // Relaciones
+      // Relationships
       builder.HasMany(u => u.Addresses)
           .WithOne(a => a.User)
           .HasForeignKey(a => a.UserId)
           .OnDelete(DeleteBehavior.Cascade);
 
-      builder.HasOne(u => u.Restaurant)
-          .WithOne(r => r.Owner)
-          .HasForeignKey<Restaurant>(r => r.UserId)
-          .OnDelete(DeleteBehavior.Restrict);
+      // Remove the Owner relationship with Restaurant
+      // builder.HasOne(u => u.Restaurant)
+      //    .WithOne(r => r.Owner)
+      //    .HasForeignKey<Restaurant>(r => r.UserId)
+      //    .OnDelete(DeleteBehavior.Restrict);
+
+      // JWT Token
+      builder.Property(u => u.RefreshToken)
+        .IsRequired(false)
+        .HasMaxLength(255);
+
+      builder.Property(u => u.RefreshTokenExpiry)
+        .IsRequired(false);
     }
   }
 }
