@@ -74,7 +74,9 @@ namespace UberEatsBackend.Services
         Email = user.Email,
         FirstName = user.FirstName,
         LastName = user.LastName,
-        Role = user.Role
+        Role = user.Role,
+        PhotoURL = user.PhotoURL,
+        GoogleId = user.GoogleId
       };
     }
 
@@ -127,8 +129,109 @@ namespace UberEatsBackend.Services
         FirstName = user.FirstName,
         LastName = user.LastName,
         Role = user.Role,
-        BusinessId = businessId
+        BusinessId = businessId,
+        PhotoURL = user.PhotoURL,  // Incluir foto (será null para usuarios normales)
+        GoogleId = user.GoogleId   // Incluir GoogleId (será null para usuarios normales)
       };
+    }
+
+    // Método para autenticar usuarios de Google
+    public async Task<AuthResponseDto> AuthenticateGoogleUserAsync(GoogleUserDto googleUser)
+    {
+      try
+      {
+        // Buscar si el usuario ya existe
+        var existingUser = await _userRepository.GetByEmailAsync(googleUser.Email);
+
+        User user;
+
+        if (existingUser != null)
+        {
+          // Usuario existente - actualizar información de Google
+          user = existingUser;
+
+          // Actualizar GoogleId y foto si no los tiene o han cambiado
+          bool needsUpdate = false;
+
+          if (string.IsNullOrEmpty(user.GoogleId))
+          {
+            user.GoogleId = googleUser.GoogleId;
+            needsUpdate = true;
+          }
+
+          // Actualizar foto de perfil si ha cambiado
+          if (user.PhotoURL != googleUser.Picture && !string.IsNullOrEmpty(googleUser.Picture))
+          {
+            user.PhotoURL = googleUser.Picture;
+            needsUpdate = true;
+          }
+
+          if (needsUpdate)
+          {
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepository.UpdateAsync(user);
+          }
+
+          Console.WriteLine($"Usuario existente encontrado: {user.Email}");
+        }
+        else
+        {
+          // Crear nuevo usuario desde Google
+          user = new User
+          {
+            Email = googleUser.Email,
+            FirstName = googleUser.FirstName,
+            LastName = googleUser.LastName,
+            GoogleId = googleUser.GoogleId,
+            PhotoURL = googleUser.Picture, // Foto de Google
+            Role = "Customer", // Por defecto
+            PasswordHash = "", // Los usuarios de Google no tienen contraseña local
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            IsActive = true
+          };
+
+          await _userRepository.AddAsync(user);
+          Console.WriteLine($"Nuevo usuario creado desde Google: {user.Email}");
+        }
+
+        // Generar tokens
+        var (accessToken, refreshToken) = _tokenService.GenerateTokens(user);
+
+        // Información adicional para usuarios de tipo Business
+        int? businessId = null;
+        if (user.Role == "Business")
+        {
+          var business = await _context.Businesses
+              .FirstOrDefaultAsync(b => b.UserId == user.Id);
+          businessId = business?.Id;
+        }
+
+        return new AuthResponseDto
+        {
+          Success = true,
+          Message = "Autenticación con Google exitosa",
+          Token = accessToken,
+          RefreshToken = refreshToken,
+          UserId = user.Id,
+          Email = user.Email,
+          FirstName = user.FirstName,
+          LastName = user.LastName,
+          Role = user.Role,
+          BusinessId = businessId,
+          PhotoURL = user.PhotoURL,  // Incluir foto de Google
+          GoogleId = user.GoogleId   // Incluir GoogleId
+        };
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error en AuthenticateGoogleUserAsync: {ex.Message}");
+        return new AuthResponseDto
+        {
+          Success = false,
+          Message = "Error interno durante la autenticación con Google"
+        };
+      }
     }
 
     public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)

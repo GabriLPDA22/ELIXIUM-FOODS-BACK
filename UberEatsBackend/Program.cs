@@ -56,6 +56,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddSingleton(appSettings);
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
+// NUEVO: Registro del servicio de Google OAuth
+builder.Services.AddScoped<GoogleAuthService>();
 
 // User services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -97,7 +99,7 @@ if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
     Console.WriteLine($"   Region: {awsSettings.Region}");
     Console.WriteLine($"   Bucket: {awsSettings.S3?.BucketName}");
     Console.WriteLine($"   AccessKey: {awsSettings.AccessKey?.Substring(0, 8)}...");
-    
+
     builder.Services.AddSingleton<IAmazonS3>(provider =>
     {
         try
@@ -121,7 +123,7 @@ if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
             throw;
         }
     });
-    
+
     Console.WriteLine($"✅ AWS S3 configurado para región: {awsSettings.Region}");
 }
 else
@@ -148,7 +150,7 @@ else
     Console.WriteLine($"   AWS AccessKey válido: {!string.IsNullOrEmpty(awsSettings?.AccessKey)}");
     Console.WriteLine($"   AWS SecretKey válido: {!string.IsNullOrEmpty(awsSettings?.SecretKey)}");
     Console.WriteLine($"   S3 Bucket configurado: {!string.IsNullOrEmpty(awsSettings?.S3?.BucketName)}");
-    
+
     throw new InvalidOperationException("S3 Storage requerido pero no configurado correctamente. Verifica tu appsettings.json");
 }
 
@@ -221,11 +223,11 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-            
+
             if (!string.IsNullOrEmpty(authHeader))
             {
                 Console.WriteLine($"📝 Authorization Header recibido: {authHeader.Substring(0, Math.Min(30, authHeader.Length))}...");
-                
+
                 // Extraer el token JWT del formato "Bearer {token}"
                 string token = authHeader;
                 if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
@@ -309,7 +311,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "UberEatsBackend API",
         Version = "v1",
-        Description = "API para aplicación tipo UberEats con servicio de imágenes S3",
+        Description = "API para aplicación tipo UberEats con servicio de imágenes S3 y Google OAuth",
         Contact = new OpenApiContact
         {
             Name = "Soporte",
@@ -385,11 +387,15 @@ using (var scope = app.Services.CreateScope())
         var s3Client = scope.ServiceProvider.GetRequiredService<IAmazonS3>();
         await s3Client.ListBucketsAsync();
         Console.WriteLine("✅ Conexión a S3 verificada exitosamente");
-        
+
         // Verificar que el servicio de imágenes esté registrado
         var imageService = scope.ServiceProvider.GetRequiredService<IImageService>();
         Console.WriteLine("✅ Image Service verificado exitosamente");
-        
+
+        // NUEVO: Verificar que el servicio de Google OAuth esté registrado
+        var googleAuthService = scope.ServiceProvider.GetRequiredService<GoogleAuthService>();
+        Console.WriteLine("✅ Google Auth Service verificado exitosamente");
+
     }
     catch (Exception ex)
     {
@@ -433,7 +439,7 @@ if (app.Environment.IsDevelopment())
     app.Use(async (context, next) =>
     {
         var authHeader = context.Request.Headers["Authorization"].ToString();
-        
+
         // Solo mostrar log si hay un header de autorización para evitar spam
         if (!string.IsNullOrEmpty(authHeader))
         {
@@ -468,8 +474,11 @@ Console.WriteLine($"🌍 Región S3: {awsSettings?.Region}");
 Console.WriteLine($"🔗 Base URL S3: {awsSettings?.S3?.BaseUrl}");
 
 Console.WriteLine("\n📁 Servicios registrados:");
+Console.WriteLine("   ├── 🔐 Auth Service (con Google OAuth)");
+Console.WriteLine("   ├── 🔑 Token Service");
+Console.WriteLine("   ├── 🌐 Google Auth Service");
 Console.WriteLine("   ├── 🏢 Business Service");
-Console.WriteLine("   ├── 🍽️  Restaurant Service");  
+Console.WriteLine("   ├── 🍽️  Restaurant Service");
 Console.WriteLine("   ├── 🥘 Product Service");
 Console.WriteLine("   ├── 🔗 RestaurantProduct Service");
 Console.WriteLine("   ├── 📦 Order Service");
@@ -479,6 +488,10 @@ Console.WriteLine("   ├── ☁️  S3 Storage Service");
 Console.WriteLine("   └── 🎟️  Promotion Service");
 
 Console.WriteLine("\n🔧 Endpoints principales:");
+Console.WriteLine("   ├── POST /api/Auth/login");
+Console.WriteLine("   ├── POST /api/Auth/register");
+Console.WriteLine("   ├── POST /api/Auth/google-login");
+Console.WriteLine("   ├── POST /api/Auth/refresh-token");
 Console.WriteLine("   ├── POST /api/images/upload/base64");
 Console.WriteLine("   ├── POST /api/images/upload");
 Console.WriteLine("   ├── DELETE /api/images");

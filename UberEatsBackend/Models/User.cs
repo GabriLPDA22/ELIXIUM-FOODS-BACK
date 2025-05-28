@@ -18,6 +18,10 @@ namespace UberEatsBackend.Models
     public string? RefreshToken { get; set; }  // Token de refresco actual
     public DateTime? RefreshTokenExpiry { get; set; }  // Fecha de expiración
 
+    // NUEVAS PROPIEDADES PARA GOOGLE OAUTH
+    public string? GoogleId { get; set; }  // ID único de Google
+    public string? PhotoURL { get; set; }  // URL de la foto de perfil (se mantiene igual)
+
     private DateTime _createdAt;
     private DateTime _updatedAt;
     private DateTime? _birthdate;
@@ -49,7 +53,6 @@ namespace UberEatsBackend.Models
     // Additional profile fields
     public string? Bio { get; set; }
     public string? DietaryPreferencesJson { get; set; } // Stored as JSON string
-    public string? PhotoURL { get; set; }
 
     // Navigation properties
     public List<Address> Addresses { get; set; } = new List<Address>();
