@@ -14,21 +14,25 @@ namespace UberEatsBackend.Controllers
     private readonly AuthService _authService;
     private readonly IUserService _userService;
     private readonly TokenService _tokenService;
-    private readonly IEmailService _emailService; // ← LÍNEA AGREGADA
+    private readonly IEmailService _emailService;
+    private readonly GoogleAuthService _googleAuthService;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         AuthService authService,
         IUserService userService,
         TokenService tokenService,
-        IEmailService emailService, // ← LÍNEA AGREGADA
+        IEmailService emailService,
+        GoogleAuthService googleAuthService,
         ILogger<AuthController> logger)
+
     {
       _authService = authService;
       _userService = userService;
       _tokenService = tokenService;
-      _emailService = emailService; // ← LÍNEA AGREGADA
+      _emailService = emailService;
       _logger = logger;
+      _googleAuthService = googleAuthService;
     }
 
     [HttpPost("register")]
@@ -112,6 +116,57 @@ namespace UberEatsBackend.Controllers
         });
       }
     }
+
+    // NUEVO: Endpoint para Google Login
+    [HttpPost("google-login")]
+    public async Task<ActionResult<AuthResponseDto>> GoogleLogin(GoogleLoginRequestDto request)
+    {
+      try
+      {
+        if (string.IsNullOrEmpty(request.IdToken))
+        {
+          return BadRequest(new AuthResponseDto
+          {
+            Success = false,
+            Message = "Token de Google es requerido"
+          });
+        }
+
+        Console.WriteLine($"Recibido token de Google: {request.IdToken.Substring(0, Math.Min(50, request.IdToken.Length))}...");
+
+        // Verificar el token con Google
+        var googleUser = await _googleAuthService.VerifyGoogleTokenAsync(request.IdToken);
+        if (googleUser == null)
+        {
+          return BadRequest(new AuthResponseDto
+          {
+            Success = false,
+            Message = "Token de Google inválido"
+          });
+        }
+
+        Console.WriteLine($"Token de Google verificado para: {googleUser.Email}");
+
+        // Autenticar o registrar al usuario
+        var result = await _authService.AuthenticateGoogleUserAsync(googleUser);
+
+        if (!result.Success)
+          return BadRequest(result);
+
+        Console.WriteLine($"Login con Google exitoso para {googleUser.Email}");
+        return Ok(result);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error en Google Login: {ex.Message}");
+        return StatusCode(500, new AuthResponseDto
+        {
+          Success = false,
+          Message = "Error interno del servidor durante la autenticación con Google"
+        });
+      }
+    }
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
