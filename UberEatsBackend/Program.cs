@@ -548,17 +548,67 @@ using (var scope = app.Services.CreateScope())
     var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
     Console.WriteLine($"✅ Email Service verificado: {emailService.GetType().Name}");
 
-    // Test rápido del email service en desarrollo
+    // ========================================
+    // 🔍 DEBUG COMPLETO DE EMAIL SERVICE
+    // ========================================
+    Console.WriteLine($"🔍 DEBUGGING EMAIL SERVICE:");
+    Console.WriteLine($"   Tipo de servicio: {emailService.GetType().Name}");
+
+    if (sendGridSettings != null)
+    {
+      Console.WriteLine($"   SendGrid configurado:");
+      Console.WriteLine($"   - API Key: {sendGridSettings.ApiKey?.Substring(0, 8)}...");
+      Console.WriteLine($"   - From Email: {sendGridSettings.FromEmail}");
+      Console.WriteLine($"   - From Name: {sendGridSettings.FromName}");
+    }
+    else
+    {
+      Console.WriteLine($"   ❌ SendGrid NO está configurado");
+    }
+
+    if (awsSettings?.SES != null)
+    {
+      Console.WriteLine($"   SES configurado:");
+      Console.WriteLine($"   - From Email: {awsSettings.SES.FromEmail}");
+      Console.WriteLine($"   - From Name: {awsSettings.SES.FromName}");
+    }
+    else
+    {
+      Console.WriteLine($"   ❌ SES NO está configurado");
+    }
+
+    // Test completo de email service en desarrollo
     if (app.Environment.IsDevelopment())
     {
-      Console.WriteLine("🧪 Realizando test de email service...");
-      var testResult = await emailService.SendEmailAsync(
-          "test@example.com",
-          "Test Email",
-          "<h1>Test HTML</h1>",
-          "Test Text");
+      Console.WriteLine("🧪 Realizando test COMPLETO de email service...");
 
-      Console.WriteLine($"   Resultado del test: {(testResult ? "✅ Éxito" : "❌ Fallo")}");
+      try
+      {
+        var testResult = await emailService.SendEmailAsync(
+            "bracingsaturn76@gmail.com", // Tu email real
+            "🚀 Test Email desde Backend - Elixium Foods",
+            "<h1>✅ Email funcionando!</h1><p>Si recibes este email, tu servicio de email está configurado correctamente.</p><p>🎉 <strong>¡Configuración exitosa!</strong></p>",
+            "Email funcionando! Si recibes este email, tu servicio de email está configurado correctamente. ¡Configuración exitosa!");
+
+        Console.WriteLine($"   Resultado del test: {(testResult ? "✅ ÉXITO - Deberías recibir email" : "❌ FALLO - Revisa configuración")}");
+
+        if (testResult)
+        {
+          Console.WriteLine($"   📧 Email enviado a: bracingsaturn76@gmail.com");
+          Console.WriteLine($"   ⏰ Revisa tu bandeja de entrada en 1-2 minutos");
+          Console.WriteLine($"   📂 También revisa spam/promociones si no llega");
+        }
+        else
+        {
+          Console.WriteLine($"   🔴 PROBLEMA: El email no se pudo enviar");
+          Console.WriteLine($"   🔧 Revisa tu configuración de SendGrid/SES");
+        }
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"   🔴 ERROR en test de email: {ex.Message}");
+        Console.WriteLine($"   🔴 StackTrace: {ex.StackTrace}");
+      }
     }
 
   }
@@ -684,6 +734,11 @@ if (app.Environment.IsDevelopment())
     Console.WriteLine("   📧 SES: Verifica emails en AWS Console para testing");
     Console.WriteLine("   📧 Los emails no verificados se simularán en logs");
   }
+  if (sendGridSettings?.FromEmail != null)
+  {
+    Console.WriteLine("   📧 SendGrid: Emails se enviarán usando tu API Key");
+    Console.WriteLine("   📧 Revisa spam/promociones si no llegan");
+  }
   Console.WriteLine("   🧪 Todos los servicios se pueden testear desde Swagger");
   Console.WriteLine("   📝 Los logs de email aparecerán en consola para debugging");
 }
@@ -694,7 +749,8 @@ Console.WriteLine("   ├── POST /api/images/upload");
 Console.WriteLine("   ├── DELETE /api/images");
 Console.WriteLine("   ├── POST /api/images/upload/multiple");
 Console.WriteLine("   ├── POST /api/Auth/forgot-password");
-Console.WriteLine("   └── POST /api/Auth/reset-password");
+Console.WriteLine("   ├── POST /api/Auth/reset-password");
+Console.WriteLine("   └── PUT /api/Auth/me");
 
 Console.WriteLine("=".PadLeft(80, '='));
 Console.WriteLine("🎯 Backend listo para recibir peticiones...");
