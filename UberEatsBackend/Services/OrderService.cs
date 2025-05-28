@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using UberEatsBackend.DTOs.Order;
 using UberEatsBackend.Models;
 using UberEatsBackend.Repositories;
+using UberEatsBackend.Data;
 
 namespace UberEatsBackend.Services
 {
@@ -17,6 +18,7 @@ namespace UberEatsBackend.Services
     private readonly IRepository<Address> _addressRepository;
     private readonly IRepository<Restaurant> _restaurantRepository;
     private readonly IRepository<Payment> _paymentRepository;
+    private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
 
     public OrderService(
@@ -25,6 +27,7 @@ namespace UberEatsBackend.Services
         IRepository<Address> addressRepository,
         IRepository<Restaurant> restaurantRepository,
         IRepository<Payment> paymentRepository,
+        ApplicationDbContext context,
         IMapper mapper)
     {
       _orderRepository = orderRepository;
@@ -32,6 +35,7 @@ namespace UberEatsBackend.Services
       _addressRepository = addressRepository;
       _restaurantRepository = restaurantRepository;
       _paymentRepository = paymentRepository;
+      _context = context;
       _mapper = mapper;
     }
 
@@ -83,7 +87,7 @@ namespace UberEatsBackend.Services
 
       // 3. Obtener todos los productos de una vez para calcular el total
       var productIds = createOrderDto.Items.Select(i => i.ProductId).ToList();
-      var products = await _productRepository.Entities
+      var products = await _context.Products
           .Where(p => productIds.Contains(p.Id))
           .ToListAsync();
 
@@ -98,7 +102,12 @@ namespace UberEatsBackend.Services
 
       foreach (var item in createOrderDto.Items)
       {
-        var product = products.First(p => p.Id == item.ProductId);
+        var product = products.FirstOrDefault(p => p.Id == item.ProductId);
+        if (product == null)
+        {
+          throw new KeyNotFoundException($"Producto con ID {item.ProductId} no encontrado");
+        }
+
         var orderItem = new OrderItem
         {
           ProductId = item.ProductId,
@@ -147,7 +156,7 @@ namespace UberEatsBackend.Services
         PaymentDate = DateTime.UtcNow
       };
 
-      await _paymentRepository.AddAsync(payment);
+      await _paymentRepository.CreateAsync(payment);
 
       // 9. Obtener la orden completa con todos sus detalles para el DTO
       var completeOrder = await _orderRepository.GetOrderWithDetailsAsync(savedOrder.Id);
@@ -178,7 +187,7 @@ namespace UberEatsBackend.Services
         return false;
       }
 
-      await _orderRepository.DeleteAsync(order);
+      await _orderRepository.DeleteAsync(order.Id);
       return true;
     }
 

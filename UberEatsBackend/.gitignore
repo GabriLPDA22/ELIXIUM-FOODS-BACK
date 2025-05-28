@@ -409,3 +409,7 @@ appsettings.Development.json
 .env
 .env.*
 !.env.example
+
+appsettings.Development.json
+appsettings.json
+appsettings.Production.json

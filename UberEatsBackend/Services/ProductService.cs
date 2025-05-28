@@ -73,8 +73,8 @@ namespace UberEatsBackend.Services
     public async Task<ProductDto> CreateProductAsync(CreateProductDto productDto)
     {
       var product = _mapper.Map<Product>(productDto);
-      var createdProduct = await _productRepository.AddAsync(product);
-      return await GetProductByIdAsync(createdProduct.Id);
+      var createdProduct = await _productRepository.CreateAsync(product);
+      return await GetProductByIdAsync(createdProduct.Id) ?? _mapper.Map<ProductDto>(createdProduct);
     }
 
     public async Task<ProductDto?> UpdateProductAsync(int id, UpdateProductDto productDto)
@@ -95,7 +95,7 @@ namespace UberEatsBackend.Services
       if (product == null)
         return false;
 
-      await _productRepository.DeleteAsync(product);
+      await _productRepository.DeleteAsync(product.Id);
       return true;
     }
     public async Task<bool> UpdateProductImageAsync(int productId, string? imageUrl)

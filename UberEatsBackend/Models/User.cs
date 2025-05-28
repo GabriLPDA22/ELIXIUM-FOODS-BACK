@@ -22,6 +22,10 @@ namespace UberEatsBackend.Models
     public string? GoogleId { get; set; }  // ID único de Google
     public string? PhotoURL { get; set; }  // URL de la foto de perfil (se mantiene igual)
 
+     // Campos para reset de contraseña
+    public string? PasswordResetToken { get; set; }  // Token para reset de contraseña
+    public DateTime? PasswordResetTokenExpiry { get; set; }  // Fecha de expiración del reset token
+
     private DateTime _createdAt;
     private DateTime _updatedAt;
     private DateTime? _birthdate;

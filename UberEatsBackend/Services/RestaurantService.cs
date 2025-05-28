@@ -28,7 +28,7 @@ namespace UberEatsBackend.Services
 
     public async Task<List<Restaurant>> GetAllRestaurantsAsync()
     {
-      return await _restaurantRepository.Entities
+      return await _context.Restaurants
           .OrderBy(r => r.Name)
           .ToListAsync();
     }
@@ -73,7 +73,7 @@ namespace UberEatsBackend.Services
 
     public async Task<List<Restaurant>> GetRestaurantsForAdminAsync(int userId)
     {
-      return await _restaurantRepository.Entities
+      return await _context.Restaurants
           .Include(r => r.Address)
           .Include(r => r.Business)
           .OrderBy(r => r.Name)

@@ -19,13 +19,45 @@ namespace UberEatsBackend.Utils
       // User mappings
       CreateMap<User, UserDto>()
           .ForMember(dest => dest.Addresses, opt => opt.MapFrom(src => src.Addresses))
-          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive));
-      CreateMap<RegisterRequestDto, User>();
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive))
+          .ForMember(dest => dest.Birthdate, opt => opt.MapFrom(src =>
+              src.Birthdate.HasValue ? src.Birthdate.Value.ToString("yyyy-MM-dd") : null))
+          .ReverseMap()
+          .ForMember(dest => dest.Birthdate, opt => opt.MapFrom(src =>
+              !string.IsNullOrEmpty(src.Birthdate) ? DateTime.Parse(src.Birthdate) : (DateTime?)null));
+
+      CreateMap<RegisterRequestDto, User>()
+          .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
+
       CreateMap<CreateUserDto, User>()
-          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true));
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
+          .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
+
       CreateMap<UpdateUserDto, User>()
-          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive));
-      CreateMap<UpdateProfileDto, User>();
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive))
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.Email, opt => opt.Ignore())
+          .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
+
+      CreateMap<UpdateProfileDto, User>()
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.Email, opt => opt.Ignore())
+          .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+          .ForMember(dest => dest.Role, opt => opt.Ignore())
+          .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.DietaryPreferencesJson, opt => opt.Ignore())
+          .ForMember(dest => dest.Birthdate, opt => opt.MapFrom(src =>
+              !string.IsNullOrEmpty(src.Birthdate) ? DateTime.Parse(src.Birthdate) : (DateTime?)null));
 
       // Address mappings
       CreateMap<Address, AddressDto>();

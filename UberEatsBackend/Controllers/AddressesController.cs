@@ -85,7 +85,7 @@ public async Task<ActionResult<ExtendedAddressDto>> CreateAddress(CreateExtended
     address.IsDefault = true;
   }
 
-  var createdAddress = await _addressRepository.AddAsync(address);
+  var createdAddress = await _addressRepository.CreateAsync(address);
 
   return CreatedAtAction(
       nameof(GetAddressById),
@@ -159,7 +159,7 @@ public async Task<ActionResult<ExtendedAddressDto>> CreateAddress(CreateExtended
       // Guardar si era la dirección predeterminada
       bool wasDefault = address.IsDefault;
 
-      await _addressRepository.DeleteAsync(address);
+      await _addressRepository.DeleteAsync(address.Id);
 
       // Si era la predeterminada, buscar otra dirección para marcar como predeterminada
       if (wasDefault)

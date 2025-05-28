@@ -50,7 +50,7 @@ namespace UberEatsBackend.Services
       var business = _mapper.Map<Business>(createBusinessDto);
       business.CreatedAt = DateTime.UtcNow;
       business.UpdatedAt = DateTime.UtcNow;
-      var createdBusiness = await _businessRepository.AddAsync(business);
+      var createdBusiness = await _businessRepository.CreateAsync(business);
       return _mapper.Map<BusinessDto>(createdBusiness);
     }
 
@@ -73,7 +73,7 @@ namespace UberEatsBackend.Services
       if (business == null)
         return false;
 
-      await _businessRepository.DeleteAsync(business);
+      await _businessRepository.DeleteAsync(business.Id);
       return true;
     }
 
@@ -198,7 +198,7 @@ namespace UberEatsBackend.Services
       promotion.BusinessId = businessId;
       promotion.UsageCount = 0;
       promotion.Status = "active";
-      var createdPromotion = await _promotionRepository.AddAsync(promotion);
+      var createdPromotion = await _promotionRepository.CreateAsync(promotion);
       return _mapper.Map<PromotionDto>(createdPromotion);
     }
 
@@ -237,7 +237,7 @@ namespace UberEatsBackend.Services
       var promotion = await _promotionRepository.GetByIdAsync(promotionId);
       if (promotion == null || promotion.BusinessId != businessId)
         return false;
-      await _promotionRepository.DeleteAsync(promotion);
+      await _promotionRepository.DeleteAsync(promotion.Id);
       return true;
     }
 

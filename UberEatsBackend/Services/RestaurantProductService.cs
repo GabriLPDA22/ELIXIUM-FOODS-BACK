@@ -5,6 +5,7 @@ using AutoMapper;
 using UberEatsBackend.DTOs.RestaurantProduct;
 using UberEatsBackend.Models;
 using UberEatsBackend.Repositories;
+using System.Linq;
 
 namespace UberEatsBackend.Services
 {
@@ -66,7 +67,7 @@ namespace UberEatsBackend.Services
         UpdatedAt = DateTime.UtcNow
       };
 
-      var createdRestaurantProduct = await _restaurantProductRepository.AddAsync(restaurantProduct);
+      var createdRestaurantProduct = await _restaurantProductRepository.CreateAsync(restaurantProduct);
       return _mapper.Map<RestaurantProductDto>(createdRestaurantProduct);
     }
 
@@ -99,7 +100,7 @@ namespace UberEatsBackend.Services
           UpdatedAt = DateTime.UtcNow
         };
 
-        var createdRestaurantProduct = await _restaurantProductRepository.AddAsync(restaurantProduct);
+        var createdRestaurantProduct = await _restaurantProductRepository.CreateAsync(restaurantProduct);
         return _mapper.Map<RestaurantProductDto>(createdRestaurantProduct);
       }
       else
@@ -122,7 +123,7 @@ namespace UberEatsBackend.Services
       if (restaurantProduct == null)
         return false;
 
-      await _restaurantProductRepository.DeleteAsync(restaurantProduct);
+      await _restaurantProductRepository.DeleteAsync(restaurantProduct.Id);
       return true;
     }
 

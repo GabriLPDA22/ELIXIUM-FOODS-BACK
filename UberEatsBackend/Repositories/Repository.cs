@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using UberEatsBackend.Data;
 
 namespace UberEatsBackend.Repositories
@@ -16,21 +14,26 @@ namespace UberEatsBackend.Repositories
       _dbSet = context.Set<T>();
     }
 
-    public DbSet<T> Entities => _dbSet;
+    public virtual async Task<T?> GetByIdAsync(int id)
+    {
+      return await _dbSet.FindAsync(id);
+    }
 
     public virtual async Task<List<T>> GetAllAsync()
     {
       return await _dbSet.ToListAsync();
     }
 
-    public virtual async Task<T?> GetByIdAsync(int id)
+    public virtual async Task<T> CreateAsync(T entity)
     {
-      return await _dbSet.FindAsync(id);
+      _dbSet.Add(entity);
+      await _context.SaveChangesAsync();
+      return entity;
     }
 
     public virtual async Task<T> AddAsync(T entity)
     {
-      await _dbSet.AddAsync(entity);
+      _dbSet.Add(entity);
       await _context.SaveChangesAsync();
       return entity;
     }
@@ -41,10 +44,14 @@ namespace UberEatsBackend.Repositories
       await _context.SaveChangesAsync();
     }
 
-    public virtual async Task DeleteAsync(T entity)
+    public virtual async Task DeleteAsync(int id)
     {
-      _dbSet.Remove(entity);
-      await _context.SaveChangesAsync();
+      var entity = await GetByIdAsync(id);
+      if (entity != null)
+      {
+        _dbSet.Remove(entity);
+        await _context.SaveChangesAsync();
+      }
     }
   }
 }
