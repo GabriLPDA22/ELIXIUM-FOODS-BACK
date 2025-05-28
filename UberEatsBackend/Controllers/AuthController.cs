@@ -579,6 +579,61 @@ namespace UberEatsBackend.Controllers
       }
     }
 
+    // NUEVO: Endpoint PUT para actualizar perfil del usuario actual
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<IActionResult> UpdateCurrentUser([FromBody] UpdateProfileDto updateProfileDto)
+    {
+      try
+      {
+        var userIdClaim = User.FindFirst("UserId")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId))
+        {
+          return Unauthorized(new AuthResponseDto
+          {
+            Success = false,
+            Message = "Usuario no autenticado"
+          });
+        }
+
+        if (!ModelState.IsValid)
+        {
+          return BadRequest(new AuthResponseDto
+          {
+            Success = false,
+            Message = "Datos de actualización inválidos"
+          });
+        }
+
+        // Actualizar el perfil usando el UserService
+        await _userService.UpdateProfileAsync(userId, updateProfileDto);
+
+        // Obtener los datos actualizados
+        var updatedUserDto = await _userService.GetUserByIdAsync(userId);
+        if (updatedUserDto == null)
+        {
+          return NotFound(new AuthResponseDto
+          {
+            Success = false,
+            Message = "Usuario no encontrado"
+          });
+        }
+
+        _logger.LogInformation("Perfil actualizado exitosamente para usuario: {UserId}", userId);
+
+        return Ok(new { Success = true, Data = updatedUserDto });
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error actualizando perfil del usuario");
+        return StatusCode(500, new AuthResponseDto
+        {
+          Success = false,
+          Message = "Error interno del servidor"
+        });
+      }
+    }
+
     private string GeneratePasswordResetToken()
     {
       // Generar un token seguro de 32 bytes
