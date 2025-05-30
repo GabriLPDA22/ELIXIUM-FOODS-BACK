@@ -125,12 +125,6 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl));
       CreateMap<Payment, PaymentDto>();
 
-      // Promotion mappings
-      CreateMap<Promotion, PromotionDto>()
-          .ForMember(dest => dest.BusinessName, opt => opt.MapFrom(src => src.Business.Name));
-      CreateMap<CreatePromotionDto, Promotion>();
-      CreateMap<UpdatePromotionDto, Promotion>();
-
       // ===== NUEVOS MAPPINGS PARA PRODUCT OFFERS =====
 
       // ProductOffer mappings

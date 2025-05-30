@@ -15,20 +15,17 @@ namespace UberEatsBackend.Services
   {
     private readonly IBusinessRepository _businessRepository;
     private readonly IOrderRepository _orderRepository;
-    private readonly IPromotionRepository _promotionRepository;
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
 
     public BusinessService(
         IBusinessRepository businessRepository,
         IOrderRepository orderRepository,
-        IPromotionRepository promotionRepository,
         ApplicationDbContext context,
         IMapper mapper)
     {
       _businessRepository = businessRepository;
       _orderRepository = orderRepository;
-      _promotionRepository = promotionRepository;
       _context = context;
       _mapper = mapper;
     }
@@ -176,95 +173,6 @@ namespace UberEatsBackend.Services
       business.CoverImageUrl = coverImageUrl ?? string.Empty;
       business.UpdatedAt = DateTime.UtcNow;
       await _businessRepository.UpdateAsync(business);
-    }
-
-    public async Task<List<PromotionDto>> GetBusinessPromotionsAsync(int businessId)
-    {
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Business with ID {businessId} not found");
-      var promotions = await _promotionRepository.GetByBusinessIdAsync(businessId);
-      return _mapper.Map<List<PromotionDto>>(promotions);
-    }
-
-    public async Task<PromotionDto> CreatePromotionAsync(int businessId, CreatePromotionDto createPromotionDto)
-    {
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Business with ID {businessId} not found");
-      if (!await _promotionRepository.IsCodeUniqueAsync(createPromotionDto.Code))
-        throw new InvalidOperationException($"Promotion code '{createPromotionDto.Code}' is already in use");
-      var promotion = _mapper.Map<Promotion>(createPromotionDto);
-      promotion.BusinessId = businessId;
-      promotion.UsageCount = 0;
-      promotion.Status = "active";
-      var createdPromotion = await _promotionRepository.CreateAsync(promotion);
-      return _mapper.Map<PromotionDto>(createdPromotion);
-    }
-
-    public async Task<PromotionDto?> UpdatePromotionAsync(int businessId, int promotionId, UpdatePromotionDto updatePromotionDto)
-    {
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Business with ID {businessId} not found");
-      var promotion = await _promotionRepository.GetByIdAsync(promotionId);
-      if (promotion == null || promotion.BusinessId != businessId)
-        return null;
-      if (updatePromotionDto.Code != null && updatePromotionDto.Code != promotion.Code)
-      {
-        if (!await _promotionRepository.IsCodeUniqueAsync(updatePromotionDto.Code, promotionId))
-          throw new InvalidOperationException($"Promotion code '{updatePromotionDto.Code}' is already in use");
-        promotion.Code = updatePromotionDto.Code;
-      }
-      if (updatePromotionDto.Name != null) promotion.Name = updatePromotionDto.Name;
-      if (updatePromotionDto.Description != null) promotion.Description = updatePromotionDto.Description;
-      if (updatePromotionDto.Type != null) promotion.Type = updatePromotionDto.Type;
-      if (updatePromotionDto.DiscountType != null) promotion.DiscountType = updatePromotionDto.DiscountType;
-      if (updatePromotionDto.DiscountValue.HasValue) promotion.DiscountValue = updatePromotionDto.DiscountValue.Value;
-      if (updatePromotionDto.StartDate.HasValue) promotion.StartDate = updatePromotionDto.StartDate.Value;
-      if (updatePromotionDto.EndDate.HasValue) promotion.EndDate = updatePromotionDto.EndDate.Value;
-      if (updatePromotionDto.MinimumOrderValue.HasValue) promotion.MinimumOrderValue = updatePromotionDto.MinimumOrderValue.Value;
-      if (updatePromotionDto.UsageLimit.HasValue) promotion.UsageLimit = updatePromotionDto.UsageLimit.Value;
-      await _promotionRepository.UpdateAsync(promotion);
-      return _mapper.Map<PromotionDto>(promotion);
-    }
-
-    public async Task<bool> DeletePromotionAsync(int businessId, int promotionId)
-    {
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Business with ID {businessId} not found");
-      var promotion = await _promotionRepository.GetByIdAsync(promotionId);
-      if (promotion == null || promotion.BusinessId != businessId)
-        return false;
-      await _promotionRepository.DeleteAsync(promotion.Id);
-      return true;
-    }
-
-    public async Task<bool> ActivatePromotionAsync(int businessId, int promotionId)
-    {
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Business with ID {businessId} not found");
-      var promotion = await _promotionRepository.GetByIdAsync(promotionId);
-      if (promotion == null || promotion.BusinessId != businessId)
-        return false;
-      promotion.Status = "active";
-      await _promotionRepository.UpdateAsync(promotion);
-      return true;
-    }
-
-    public async Task<bool> DeactivatePromotionAsync(int businessId, int promotionId)
-    {
-      var business = await _businessRepository.GetByIdAsync(businessId);
-      if (business == null)
-        throw new KeyNotFoundException($"Business with ID {businessId} not found");
-      var promotion = await _promotionRepository.GetByIdAsync(promotionId);
-      if (promotion == null || promotion.BusinessId != businessId)
-        return false;
-      promotion.Status = "inactive";
-      await _promotionRepository.UpdateAsync(promotion);
-      return true;
     }
 
     public async Task<List<BusinessHourDto>> GetBusinessHoursAsync(int businessId)

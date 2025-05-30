@@ -73,11 +73,6 @@ builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>(
 builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
 
-// Promotion services
-builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
-builder.Services.AddScoped<IProductOfferRepository, ProductOfferRepository>();
-builder.Services.AddScoped<IProductOfferService, ProductOfferService>();
-
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 

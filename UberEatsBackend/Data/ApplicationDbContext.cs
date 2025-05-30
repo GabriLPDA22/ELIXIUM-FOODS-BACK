@@ -21,7 +21,6 @@ namespace UberEatsBackend.Data
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<Business> Businesses { get; set; } = null!;
-    public DbSet<Promotion> Promotions { get; set; } = null!;
     public DbSet<BusinessHour> BusinessHours { get; set; } = null!;
 
     // ===== NUEVAS TABLAS PARA EL SISTEMA DE OFERTAS =====

@@ -27,11 +27,5 @@ namespace UberEatsBackend.Services
         Task<BusinessHourDto?> UpdateBusinessHourAsync(int businessId, int hourId, UpdateBusinessHourDto updateBusinessHourDto);
         Task<bool> DeleteBusinessHourAsync(int businessId, int hourId);
 
-        Task<List<PromotionDto>> GetBusinessPromotionsAsync(int businessId);
-        Task<PromotionDto> CreatePromotionAsync(int businessId, CreatePromotionDto createPromotionDto);
-        Task<PromotionDto?> UpdatePromotionAsync(int businessId, int promotionId, UpdatePromotionDto updatePromotionDto);
-        Task<bool> DeletePromotionAsync(int businessId, int promotionId);
-        Task<bool> ActivatePromotionAsync(int businessId, int promotionId);
-        Task<bool> DeactivatePromotionAsync(int businessId, int promotionId);
     }
 }
