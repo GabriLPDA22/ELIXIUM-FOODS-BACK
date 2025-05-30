@@ -69,6 +69,10 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
 builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
 
+// offer services
+builder.Services.AddScoped<IProductOfferRepository, ProductOfferRepository>();
+builder.Services.AddScoped<IProductOfferService, ProductOfferService>();
+
 // Business services
 builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();

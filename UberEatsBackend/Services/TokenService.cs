@@ -13,13 +13,13 @@ namespace UberEatsBackend.Services
     {
         private readonly AppSettings _appSettings;
         private readonly ILogger<TokenService> _logger;
-        private readonly IUserRepository _userRepository;
+        private readonly IServiceProvider _serviceProvider;
 
-        public TokenService(AppSettings appSettings, ILogger<TokenService> logger, IUserRepository userRepository)
+        public TokenService(AppSettings appSettings, ILogger<TokenService> logger, IServiceProvider serviceProvider)
         {
             _appSettings = appSettings;
             _logger = logger;
-            _userRepository = userRepository;
+            _serviceProvider = serviceProvider;
         }
 
         public (string accessToken, string refreshToken) GenerateTokens(User user)
@@ -27,8 +27,8 @@ namespace UberEatsBackend.Services
             var accessToken = GenerateAccessToken(user);
             var refreshToken = GenerateRefreshToken();
 
-            // Guardar refresh token en el usuario
-            SaveRefreshToken(user.Id, refreshToken);
+            // ✅ GUARDAR REFRESH TOKEN DE FORMA SEGURA (en background)
+            _ = Task.Run(async () => await SaveRefreshTokenSafeAsync(user.Id, refreshToken));
 
             return (accessToken, refreshToken);
         }
@@ -107,11 +107,16 @@ namespace UberEatsBackend.Services
             }
         }
 
+        // ✅ MÉTODO QUE ESPERA TU AUTHSERVICE (SIN parámetros adicionales)
         public async Task<(string accessToken, string refreshToken)> RefreshTokenAsync(string refreshToken)
         {
             try
             {
-                var user = await _userRepository.GetUserByRefreshTokenAsync(refreshToken);
+                // Crear scope fresh para evitar DbContext disposed
+                using var scope = _serviceProvider.CreateScope();
+                var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+                var user = await userRepository.GetUserByRefreshTokenAsync(refreshToken);
                 if (user == null)
                 {
                     throw new SecurityTokenException("Refresh token inválido");
@@ -120,8 +125,8 @@ namespace UberEatsBackend.Services
                 var newAccessToken = GenerateAccessToken(user);
                 var newRefreshToken = GenerateRefreshToken();
 
-                // Actualizar el refresh token en la base de datos
-                await SaveRefreshTokenAsync(user.Id, newRefreshToken);
+                // Guardar nuevo refresh token
+                await SaveRefreshTokenSafeAsync(user.Id, newRefreshToken);
 
                 return (newAccessToken, newRefreshToken);
             }
@@ -132,16 +137,20 @@ namespace UberEatsBackend.Services
             }
         }
 
+        // ✅ MÉTODO QUE ESPERA TU AUTHSERVICE
         public async Task RevokeTokenAsync(string refreshToken)
         {
             try
             {
-                var user = await _userRepository.GetUserByRefreshTokenAsync(refreshToken);
+                using var scope = _serviceProvider.CreateScope();
+                var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+                var user = await userRepository.GetUserByRefreshTokenAsync(refreshToken);
                 if (user != null)
                 {
                     user.RefreshToken = null;
                     user.RefreshTokenExpiry = null;
-                    await _userRepository.UpdateAsync(user);
+                    await userRepository.UpdateAsync(user);
                 }
             }
             catch (Exception ex)
@@ -151,6 +160,7 @@ namespace UberEatsBackend.Services
             }
         }
 
+        // ✅ MÉTODO QUE ESPERA TU AUTHSERVICE
         public async Task<bool> ValidateTokenAsync(string token)
         {
             return await Task.FromResult(ValidateToken(token));
@@ -229,26 +239,33 @@ namespace UberEatsBackend.Services
             }
         }
 
-        private void SaveRefreshToken(int userId, string refreshToken)
-        {
-            Task.Run(async () => await SaveRefreshTokenAsync(userId, refreshToken));
-        }
-
-        private async Task SaveRefreshTokenAsync(int userId, string refreshToken)
+        // ✅ MÉTODO PRIVADO SEGURO PARA GUARDAR REFRESH TOKEN
+        private async Task SaveRefreshTokenSafeAsync(int userId, string refreshToken)
         {
             try
             {
-                var user = await _userRepository.GetByIdAsync(userId);
+                // Crear scope fresh para evitar problemas de DbContext disposed
+                using var scope = _serviceProvider.CreateScope();
+                var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+                var user = await userRepository.GetByIdAsync(userId);
                 if (user != null)
                 {
                     user.RefreshToken = refreshToken;
                     user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
-                    await _userRepository.UpdateAsync(user);
+                    await userRepository.UpdateAsync(user);
+
+                    _logger.LogInformation("Refresh token guardado exitosamente para usuario: {UserId}", userId);
+                }
+                else
+                {
+                    _logger.LogWarning("Usuario no encontrado para guardar refresh token: {UserId}", userId);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error guardando refresh token para usuario: {UserId}", userId);
+                // No lanzar excepción para no romper el flujo principal
             }
         }
     }
