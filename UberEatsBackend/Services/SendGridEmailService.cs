@@ -22,7 +22,7 @@ namespace UberEatsBackend.Services
         {
             try
             {
-                var resetLink = $"{resetUrl}?token={resetToken}";
+                var resetLink = $"{resetUrl}?token={resetToken}&email={Uri.EscapeDataString(email)}";
                 var subject = "Restablecer tu contraseña - Elixium Foods";
 
                 var htmlContent = $@"
