@@ -3,28 +3,51 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Amazon.S3;
+using Amazon.SimpleEmail;
+using SendGrid;
+using SendGrid.Extensions.DependencyInjection;
 using UberEatsBackend.Data;
 using UberEatsBackend.Repositories;
 using UberEatsBackend.Services;
 using UberEatsBackend.Utils;
 
-// Configurar comportamiento de timestamp para PostgreSQL
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuración de AppSettings
 var appSettingsSection = builder.Configuration.GetSection("AppSettings");
 builder.Services.Configure<AppSettings>(appSettingsSection);
-var appSettings = appSettingsSection.Get<AppSettings>();
+var appSettings = appSettingsSection.Get<AppSettings>() ?? new AppSettings();
 
-// Configurar DbContext
+var awsSection = builder.Configuration.GetSection("AWS");
+var awsSettings = awsSection.Get<AWSSettings>();
+
+var storageSection = builder.Configuration.GetSection("StorageSettings");
+var storageSettings = storageSection.Get<StorageSettings>();
+
+var sendGridSection = builder.Configuration.GetSection("SendGrid");
+var sendGridSettings = sendGridSection.Get<SendGridSettings>();
+
+if (awsSettings != null)
+{
+    appSettings.AWS = awsSettings;
+}
+
+if (sendGridSettings != null)
+{
+    appSettings.SendGrid = sendGridSettings;
+}
+
+// Configuración de Base de Datos
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(appSettings.ConnectionString));
 
-// Registro de repositorios y servicios
+// Registro de Servicios
 builder.Services.AddSingleton(appSettings);
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<GoogleAuthService>();
 
 // User services
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -38,11 +61,11 @@ builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 
-// Product services (updated)
+// Product services
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
 
-// RestaurantProduct services (new)
+// RestaurantProduct services
 builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
 builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
 
@@ -50,159 +73,207 @@ builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>(
 builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
 
-// Storage and promotion services
-builder.Services.AddScoped<IStorageService, LocalStorageService>();
+// Promotion services
 builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
 
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-// Configurar CORS para permitir peticiones del cliente Vue.js
-builder.Services.AddCors(options =>
+// Configuración de AWS S3
+if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
 {
-  options.AddPolicy("AllowVueApp", builder =>
-  {
-    builder.WithOrigins("http://localhost:5173") // URL de desarrollo de Vue
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
-  });
+    builder.Services.AddSingleton<IAmazonS3>(provider =>
+    {
+        var config = new AmazonS3Config
+        {
+            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+            Timeout = TimeSpan.FromMinutes(5),
+            MaxErrorRetry = 3,
+            UseHttp = false
+        };
+
+        return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+    });
+
+    // Configurar SES si está configurado
+    if (!string.IsNullOrEmpty(awsSettings.SES?.FromEmail))
+    {
+        builder.Services.AddSingleton<IAmazonSimpleEmailService>(provider =>
+        {
+            var config = new Amazon.SimpleEmail.AmazonSimpleEmailServiceConfig
+            {
+                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+                Timeout = TimeSpan.FromMinutes(2),
+                MaxErrorRetry = 3
+            };
+
+            return new Amazon.SimpleEmail.AmazonSimpleEmailServiceClient(
+                awsSettings.AccessKey,
+                awsSettings.SecretKey,
+                config);
+        });
+    }
+}
+
+// Configuración de Storage
+if (storageSettings?.UseS3Storage == true && awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
+{
+    builder.Services.AddScoped<IStorageService, S3StorageService>();
+}
+else
+{
+    throw new InvalidOperationException("S3 Storage requerido pero no configurado correctamente.");
+}
+
+// Configuración de Email Service
+bool emailServiceConfigured = false;
+
+// Prioridad: AWS SES -> SendGrid -> DummyEmailService
+if (awsSettings != null &&
+    !string.IsNullOrEmpty(awsSettings.AccessKey) &&
+    !string.IsNullOrEmpty(awsSettings.SES?.FromEmail))
+{
+    builder.Services.AddScoped<IEmailService, SESEmailService>();
+    emailServiceConfigured = true;
+}
+else if (sendGridSettings != null && !string.IsNullOrEmpty(sendGridSettings.ApiKey))
+{
+    builder.Services.AddSendGrid(options =>
+    {
+        options.ApiKey = sendGridSettings.ApiKey;
+    });
+
+    builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+    emailServiceConfigured = true;
+}
+
+if (!emailServiceConfigured)
+{
+    builder.Services.AddScoped<IEmailService, DummyEmailService>();
+}
+
+builder.Services.AddScoped<IImageService, ImageService>();
+
+// Configuración de Logging
+builder.Services.AddLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+    
+    if (builder.Environment.IsDevelopment())
+    {
+        // En desarrollo, mostrar solo logs importantes
+        logging.SetMinimumLevel(LogLevel.Information);
+        logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+        logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+        logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.Warning);
+        logging.AddFilter("Microsoft.AspNetCore.StaticFiles", LogLevel.Error);
+        logging.AddFilter("Microsoft.AspNetCore.DataProtection", LogLevel.Error);
+        logging.AddFilter("Microsoft.AspNetCore.Mvc.ModelBinding", LogLevel.Error);
+        logging.AddFilter("Microsoft.AspNetCore.HostFiltering", LogLevel.Error);
+        logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Information);
+    }
+    else
+    {
+        // En producción, mostrar solo logs críticos
+        logging.SetMinimumLevel(LogLevel.Warning);
+        logging.AddFilter("Microsoft", LogLevel.Warning);
+    }
 });
 
-// Configurar autenticación JWT con registro de eventos para depuración
+// Configuración de CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVueApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
+// Configuración de Autenticación JWT
 builder.Services.AddAuthentication(options =>
 {
-  options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-  options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
-  options.TokenValidationParameters = new TokenValidationParameters
-  {
-    ValidateIssuer = true,
-    ValidateAudience = true,
-    ValidateLifetime = true,
-    ValidateIssuerSigningKey = true,
-    ValidIssuer = appSettings.JwtIssuer,
-    ValidAudience = appSettings.JwtAudience,
-    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appSettings.JwtSecret)),
-    ClockSkew = TimeSpan.FromMinutes(5) // 5 minutos de tolerancia para problemas de sincronización de reloj
-  };
-
-  // Configuración para depuración de problemas de JWT
-  options.Events = new JwtBearerEvents
-  {
-    OnMessageReceived = context =>
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-      var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-      Console.WriteLine($"📝 Encabezado de autorización recibido: {authHeader}");
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = appSettings.JwtIssuer,
+        ValidAudience = appSettings.JwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(appSettings.JwtSecret)),
+        ClockSkew = TimeSpan.FromMinutes(5)
+    };
 
-      if (!string.IsNullOrEmpty(authHeader))
-      {
-        // Extraer el token JWT del formato "Bearer {token}"
-        string token = authHeader;
-        if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
         {
-          token = authHeader.Substring("Bearer ".Length).Trim();
-        }
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader))
+            {
+                string token = authHeader;
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    token = authHeader.Substring("Bearer ".Length).Trim();
+                }
 
-        // Verificar si el token parece ser un JWT válido (debe tener dos puntos)
-        if (token.Count(c => c == '.') != 2)
+                if (token.Count(c => c == '.') == 2)
+                {
+                    context.Token = token;
+                }
+            }
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
         {
-          Console.WriteLine("⚠️ Advertencia: El token no tiene el formato JWT válido (header.payload.signature)");
-          // En desarrollo, permitimos probar incluso con tokens mal formados
-          if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-          {
-            Console.WriteLine("⚠️ Estamos en desarrollo, intentando procesar el token de todos modos");
-            context.Token = token;
-          }
+            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+            {
+                context.Response.Headers.Append("Token-Expired", "true");
+            }
+            return Task.CompletedTask;
         }
-        else
-        {
-          // Token parece válido, asignarlo
-          context.Token = token;
-          Console.WriteLine($"✅ Token JWT válido extraído: {token.Substring(0, Math.Min(30, token.Length))}...");
-        }
-      }
-      else
-      {
-        Console.WriteLine("⚠️ No se encontró encabezado de autorización");
-      }
-
-      return Task.CompletedTask;
-    },
-    OnAuthenticationFailed = context =>
-    {
-      Console.WriteLine($"🔴 Error de autenticación: {context.Exception.Message}");
-
-      if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-      {
-        context.Response.Headers.Append("Token-Expired", "true");
-        Console.WriteLine("🔴 El token ha expirado");
-      }
-      else if (context.Exception.GetType() == typeof(SecurityTokenInvalidSignatureException))
-      {
-        Console.WriteLine("🔴 La firma del token es inválida");
-      }
-      else if (context.Exception is SecurityTokenMalformedException)
-      {
-        Console.WriteLine("🔴 El token está malformado. Debe tener el formato de JWT válido con tres secciones separadas por puntos.");
-      }
-
-      // Log detallado para depuración
-      Console.WriteLine($"StackTrace: {context.Exception.StackTrace}");
-
-      return Task.CompletedTask;
-    },
-    OnTokenValidated = context =>
-    {
-      Console.WriteLine($"✅ Token validado correctamente para usuario: {context.Principal?.Identity?.Name}");
-      return Task.CompletedTask;
-    },
-    OnChallenge = context =>
-    {
-      Console.WriteLine($"⚠️ Desafío de autenticación activado: {context.AuthenticateFailure?.Message ?? "Sin detalles de error"}");
-      return Task.CompletedTask;
-    }
-  };
+    };
 });
 
-// Agregar autorización
 builder.Services.AddAuthorization();
-
-// AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
-
-// Controladores
 builder.Services.AddControllers();
 
-// Configurar Swagger/OpenAPI
+// Configuración de Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-  c.SwaggerDoc("v1", new OpenApiInfo
-  {
-    Title = "UberEatsBackend API",
-    Version = "v1",
-    Description = "API para aplicación tipo UberEats - Restructured without Menus",
-    Contact = new OpenApiContact
+    c.SwaggerDoc("v1", new OpenApiInfo
     {
-      Name = "Soporte",
-      Email = "soporte@ubereatsclone.com"
-    }
-  });
+        Title = "UberEatsBackend API",
+        Version = "v1",
+        Description = "API para aplicación tipo UberEats",
+        Contact = new OpenApiContact
+        {
+            Name = "Soporte",
+            Email = "soporte@ubereatsclone.com"
+        }
+    });
 
-  // Configurar Swagger para usar JWT
-  c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-  {
-    Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-    Name = "Authorization",
-    In = ParameterLocation.Header,
-    Type = SecuritySchemeType.ApiKey,
-    Scheme = "Bearer"
-  });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
 
-  c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -220,84 +291,83 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Inicializar la base de datos (opcional)
+// Crear directorio wwwroot si no existe para evitar advertencias
+var wwwrootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(wwwrootPath))
+{
+    Directory.CreateDirectory(wwwrootPath);
+}
+
+// Inicialización de Base de Datos
 if (app.Environment.IsDevelopment())
 {
-  using (var scope = app.Services.CreateScope())
-  {
-    var services = scope.ServiceProvider;
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            var context = services.GetRequiredService<ApplicationDbContext>();
+            context.Database.EnsureCreated();
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Error al inicializar la base de datos");
+        }
+    }
+}
+
+// Verificación de servicios críticos
+using (var scope = app.Services.CreateScope())
+{
     try
     {
-      var context = services.GetRequiredService<ApplicationDbContext>();
+        var s3Client = scope.ServiceProvider.GetRequiredService<IAmazonS3>();
+        await s3Client.ListBucketsAsync();
 
-      // Asegurarse de que la base de datos exista
-      context.Database.EnsureCreated();
+        var sesClient = scope.ServiceProvider.GetService<IAmazonSimpleEmailService>();
+        if (sesClient != null)
+        {
+            await sesClient.GetSendQuotaAsync();
+        }
 
-      Console.WriteLine("✅ Base de datos inicializada correctamente (Estructura sin Menus)");
+        scope.ServiceProvider.GetRequiredService<IImageService>();
+        scope.ServiceProvider.GetRequiredService<IEmailService>();
     }
     catch (Exception ex)
     {
-      var logger = services.GetRequiredService<ILogger<Program>>();
-      logger.LogError(ex, "🔴 Error al inicializar la base de datos");
-      Console.WriteLine($"🔴 Error al inicializar la base de datos: {ex.Message}");
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Error verificando servicios críticos");
+        
+        if (ex.Message.Contains("S3") || ex.Message.Contains("Bucket"))
+        {
+            throw;
+        }
     }
-  }
 }
 
-// Configuración de middleware
+// Configuración de Middleware
 if (app.Environment.IsDevelopment())
 {
-  app.UseSwagger();
-  app.UseSwaggerUI(c =>
-  {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1 (No Menus)");
-
-    // Usar la ruta por defecto para Swagger UI - http://localhost:5290/swagger
-    c.RoutePrefix = "swagger";
-  });
-
-  Console.WriteLine("✅ Swagger habilitado en /swagger");
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UberEatsBackend API v1");
+        c.RoutePrefix = "swagger";
+        c.DisplayRequestDuration();
+    });
 }
 
-// Middleware CORS - importante colocarlo antes de los middleware de autenticación
 app.UseCors("AllowVueApp");
-Console.WriteLine("✅ CORS configurado para permitir peticiones desde http://localhost:5173");
 
-// En desarrollo, podemos desactivar la redirección HTTPS para simplificar
 if (!app.Environment.IsDevelopment())
 {
-  app.UseHttpsRedirection();
+    app.UseHttpsRedirection();
 }
 
-// Middleware de diagnóstico para verificar todos los encabezados de autorización
-app.Use(async (context, next) =>
-{
-  var authHeader = context.Request.Headers["Authorization"].ToString();
-  Console.WriteLine($"[DEBUG MIDDLEWARE] Cabecera Authorization: '{authHeader}'");
-
-  await next();
-});
-
-// Middleware de autenticación antes de autorización - orden importante
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Mapear controladores
 app.MapControllers();
 
-// Mensaje de inicio para confirmación
-Console.WriteLine($"🚀 Servidor iniciado en modo {app.Environment.EnvironmentName}");
-Console.WriteLine($"🔐 JWT configurado con Issuer: {appSettings.JwtIssuer}, Audience: {appSettings.JwtAudience}");
-Console.WriteLine($"📚 Documentación Swagger disponible en: http://localhost:5290/swagger");
-Console.WriteLine($"🏗️ Estructura actualizada: Business -> Category -> Product + RestaurantProduct (pivot)");
-
-try
-{
-  app.Run();
-  Console.WriteLine("✅ Aplicación finalizada correctamente");
-}
-catch (Exception ex)
-{
-  Console.WriteLine($"🔴 Error fatal al ejecutar la aplicación: {ex.Message}");
-  Console.WriteLine(ex.StackTrace);
-}
+app.Run();

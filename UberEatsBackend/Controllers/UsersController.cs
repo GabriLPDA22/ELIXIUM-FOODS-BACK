@@ -1,392 +1,360 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Security.Claims;
-using System.Text.Json;
-using System.Threading.Tasks;
 using UberEatsBackend.DTOs.User;
-using UberEatsBackend.Models;
-using UberEatsBackend.Repositories;
 using UberEatsBackend.Services;
-using BC = BCrypt.Net.BCrypt;
 
 namespace UberEatsBackend.Controllers
 {
-  [ApiController]
-  [Route("api/[controller]")]
-  [Authorize]
-  public class UsersController : ControllerBase
-  {
-    private readonly IUserRepository _userRepository;
-    private readonly IMapper _mapper;
-
-    public UsersController(IUserRepository userRepository, IMapper mapper)
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class UserController : ControllerBase
     {
-      _userRepository = userRepository;
-      _mapper = mapper;
-    }
+        private readonly IUserService _userService;
+        private readonly ILogger<UserController> _logger;
 
-    [HttpGet]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<UserDto>>> GetAllUsers()
-    {
-      var users = await _userRepository.GetAllAsync();
-      return Ok(_mapper.Map<IEnumerable<UserDto>>(users));
-    }
-
-    [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<UserDto>> CreateUser(CreateUserDto createUserDto)
-    {
-      try
-      {
-        // Verificar si el email ya existe
-        var existingUser = await _userRepository.GetByEmailAsync(createUserDto.Email);
-        if (existingUser != null)
-          return BadRequest(new { message = "El correo electrónico ya está registrado" });
-
-        // Validar el rol
-        string role = createUserDto.Role.ToLower() switch
+        public UserController(IUserService userService, ILogger<UserController> logger)
         {
-          "admin" => "Admin",
-          "restaurant" => "Restaurant",
-          "deliveryperson" => "DeliveryPerson",
-          "business" => "Business",
-          _ => "Customer"
-        };
+            _userService = userService;
+            _logger = logger;
+        }
 
-        // Crear el usuario
-        var user = new User
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllUsers()
         {
-          Email = createUserDto.Email,
-          PasswordHash = BC.HashPassword(createUserDto.Password),
-          FirstName = createUserDto.FirstName,
-          LastName = createUserDto.LastName,
-          PhoneNumber = createUserDto.PhoneNumber,
-          Role = role,
-          IsActive = true
-        };
-
-        var createdUser = await _userRepository.AddAsync(user);
-
-        return CreatedAtAction(
-            nameof(GetUserById),
-            new { id = createdUser.Id },
-            _mapper.Map<UserDto>(createdUser)
-        );
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al crear usuario: " + ex.Message });
-      }
-    }
-
-    [HttpGet("{id}")]
-    public async Task<ActionResult<UserDto>> GetUserById(int id)
-    {
-      try
-      {
-        // Verificar que el usuario logueado pueda acceder a este recurso
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-        if (userId != id && userRole != "Admin")
-          return Forbid();
-
-        var user = await _userRepository.GetWithAddressesAsync(id);
-
-        if (user == null)
-          return NotFound();
-
-        return Ok(_mapper.Map<UserDto>(user));
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al obtener usuario: " + ex.Message });
-      }
-    }
-
-    [HttpPut("{id}")]
-    public async Task<ActionResult<UserDto>> UpdateUser(int id, UpdateUserDto updateUserDto)
-    {
-      try
-      {
-        // Verificar que el usuario logueado pueda actualizar este recurso
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-
-        if (userId != id && userRole != "Admin")
-          return Forbid();
-
-        var user = await _userRepository.GetByIdAsync(id);
-
-        if (user == null)
-          return NotFound(new { message = "Usuario no encontrado" });
-
-        // Actualizar campos básicos
-        user.FirstName = updateUserDto.FirstName;
-        user.LastName = updateUserDto.LastName;
-        user.PhoneNumber = updateUserDto.PhoneNumber;
-
-        // Solo admins pueden cambiar roles e IsActive
-        if (userRole == "Admin")
-        {
-          if (!string.IsNullOrEmpty(updateUserDto.Role))
-          {
-            string role = updateUserDto.Role.ToLower() switch
+            try
             {
-              "admin" => "Admin",
-              "restaurant" => "Restaurant",
-              "deliveryperson" => "DeliveryPerson",
-              "business" => "Business",
-              _ => "Customer"
-            };
-            user.Role = role;
-          }
-
-          user.IsActive = updateUserDto.IsActive;
+                var users = await _userService.GetAllUsersAsync();
+                return Ok(new { Success = true, Data = users });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo todos los usuarios");
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        user.UpdatedAt = System.DateTime.UtcNow;
-
-        await _userRepository.UpdateAsync(user);
-
-        return Ok(_mapper.Map<UserDto>(user));
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al actualizar usuario: " + ex.Message });
-      }
-    }
-
-    [HttpPut("{id}/toggle-status")]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<UserDto>> ToggleUserStatus(int id)
-    {
-      try
-      {
-        var user = await _userRepository.GetByIdAsync(id);
-
-        if (user == null)
-          return NotFound(new { message = "Usuario no encontrado" });
-
-        user.IsActive = !user.IsActive;
-        user.UpdatedAt = System.DateTime.UtcNow;
-
-        await _userRepository.UpdateAsync(user);
-
-        return Ok(_mapper.Map<UserDto>(user));
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al cambiar estado del usuario: " + ex.Message });
-      }
-    }
-
-    [HttpPut("profile")]
-    public async Task<ActionResult<UserDto>> UpdateProfile(UpdateProfileDto updateProfileDto)
-    {
-      try
-      {
-        // Obtener ID del usuario actual
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null)
-          return NotFound(new { message = "Usuario no encontrado" });
-
-        // Actualizar campos básicos
-        user.FirstName = updateProfileDto.FirstName;
-        user.LastName = updateProfileDto.LastName;
-        user.PhoneNumber = updateProfileDto.PhoneNumber;
-
-        // Campos opcionales
-        if (!string.IsNullOrEmpty(updateProfileDto.Birthdate))
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetUserById(int id)
         {
-          if (DateTime.TryParse(updateProfileDto.Birthdate, out DateTime birthdate))
-          {
-            user.Birthdate = birthdate;
-          }
+            try
+            {
+                // Solo admins pueden ver cualquier usuario, otros solo pueden verse a sí mismos
+                var currentUserIdClaim = User.FindFirst("UserId")?.Value;
+                var currentUserRole = User.FindFirst("Role")?.Value;
+
+                if (currentUserRole != "Admin" &&
+                    (!int.TryParse(currentUserIdClaim, out int currentUserId) || currentUserId != id))
+                {
+                    return Forbid();
+                }
+
+                var user = await _userService.GetUserByIdAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { Success = false, Message = "Usuario no encontrado" });
+                }
+
+                return Ok(new { Success = true, Data = user });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo usuario por ID: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        user.Bio = updateProfileDto.Bio;
-        user.PhotoURL = updateProfileDto.PhotoURL;
-
-        // Preferencias alimentarias (guardar como JSON)
-        if (updateProfileDto.DietaryPreferences != null && updateProfileDto.DietaryPreferences.Count > 0)
+        [HttpGet("by-email/{email}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserByEmail(string email)
         {
-          user.DietaryPreferencesJson = JsonSerializer.Serialize(updateProfileDto.DietaryPreferences);
+            try
+            {
+                var user = await _userService.GetUserByEmailAsync(email);
+                if (user == null)
+                {
+                    return NotFound(new { Success = false, Message = "Usuario no encontrado" });
+                }
+
+                return Ok(new { Success = true, Data = user });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo usuario por email: {Email}", email);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
-        else
+
+        [HttpGet("by-role/{role}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsersByRole(string role)
         {
-          user.DietaryPreferencesJson = null;
+            try
+            {
+                var users = await _userService.GetUsersByRoleAsync(role);
+                return Ok(new { Success = true, Data = users });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo usuarios por rol: {Role}", role);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        user.UpdatedAt = DateTime.UtcNow;
-        await _userRepository.UpdateAsync(user);
-
-        // Convertir a DTO y devolver
-        var userDto = _mapper.Map<UserDto>(user);
-
-        // Agregar campos adicionales si es necesario
-        if (user.Birthdate.HasValue)
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
         {
-          userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { Success = false, Message = "Datos inválidos" });
+                }
+
+                var createdUser = await _userService.CreateUserAsync(createUserDto);
+                return CreatedAtAction(nameof(GetUserById), new { id = createdUser.Id },
+                    new { Success = true, Data = createdUser });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creando usuario");
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        userDto.Bio = user.Bio;
-        userDto.PhotoURL = user.PhotoURL;
-
-        // Deserializar preferencias alimentarias
-        if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto updateUserDto)
         {
-          userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+            try
+            {
+                // Solo admins pueden actualizar cualquier usuario, otros solo pueden actualizarse a sí mismos
+                var currentUserIdClaim = User.FindFirst("UserId")?.Value;
+                var currentUserRole = User.FindFirst("Role")?.Value;
+
+                if (currentUserRole != "Admin" &&
+                    (!int.TryParse(currentUserIdClaim, out int currentUserId) || currentUserId != id))
+                {
+                    return Forbid();
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { Success = false, Message = "Datos inválidos" });
+                }
+
+                await _userService.UpdateUserAsync(id, updateUserDto);
+                return Ok(new { Success = true, Message = "Usuario actualizado exitosamente" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando usuario: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        return Ok(userDto);
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al actualizar perfil: " + ex.Message });
-      }
-    }
-
-    [HttpPut("{id}/password")]
-    public async Task<IActionResult> UpdatePassword(int id, UpdatePasswordDto updatePasswordDto)
-    {
-      try
-      {
-        // Verificar que el usuario logueado pueda actualizar la contraseña
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-
-        if (userId != id)
-          return Forbid();
-
-        var user = await _userRepository.GetByIdAsync(id);
-
-        if (user == null)
-          return NotFound();
-
-        // Verificar contraseña actual
-        bool isCurrentPasswordValid = BC.Verify(updatePasswordDto.CurrentPassword, user.PasswordHash);
-        if (!isCurrentPasswordValid)
-          return BadRequest(new { message = "La contraseña actual es incorrecta" });
-
-        // Actualizar contraseña
-        user.PasswordHash = BC.HashPassword(updatePasswordDto.NewPassword);
-        user.UpdatedAt = System.DateTime.UtcNow;
-        await _userRepository.UpdateAsync(user);
-
-        return NoContent();
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al actualizar contraseña: " + ex.Message });
-      }
-    }
-
-    [HttpPut("password")]
-    public async Task<IActionResult> ChangePassword(ChangePasswordDto changePasswordDto)
-    {
-      try
-      {
-        // Obtener ID del usuario actual
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null)
-          return NotFound(new { message = "Usuario no encontrado" });
-
-        // Verificar contraseña actual
-        bool isCurrentPasswordValid = BC.Verify(changePasswordDto.CurrentPassword, user.PasswordHash);
-        if (!isCurrentPasswordValid)
-          return BadRequest(new { message = "La contraseña actual es incorrecta" });
-
-        // Actualizar contraseña
-        user.PasswordHash = BC.HashPassword(changePasswordDto.NewPassword);
-        user.UpdatedAt = System.DateTime.UtcNow;
-        await _userRepository.UpdateAsync(user);
-
-        return NoContent();
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al cambiar contraseña: " + ex.Message });
-      }
-    }
-
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteUser(int id)
-    {
-      try
-      {
-        var user = await _userRepository.GetByIdAsync(id);
-
-        if (user == null)
-          return NotFound();
-
-        await _userRepository.DeleteAsync(user);
-
-        return NoContent();
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al eliminar usuario: " + ex.Message });
-      }
-    }
-
-    [HttpGet("byRole/{role}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByRole(string role)
-    {
-      try
-      {
-        var users = await _userRepository.GetByRoleAsync(role);
-        return Ok(_mapper.Map<IEnumerable<UserDto>>(users));
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al obtener usuarios por rol: " + ex.Message });
-      }
-    }
-
-    [HttpGet("me")]
-    public async Task<ActionResult<UserDto>> GetCurrentUser()
-    {
-      try
-      {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var user = await _userRepository.GetWithAddressesAsync(userId);
-
-        if (user == null)
-          return NotFound();
-
-        var userDto = _mapper.Map<UserDto>(user);
-
-        // Agregar campos adicionales
-        if (user.Birthdate.HasValue)
+        [HttpPut("{id}/profile")]
+        public async Task<IActionResult> UpdateProfile(int id, [FromBody] UpdateProfileDto updateProfileDto)
         {
-          userDto.Birthdate = user.Birthdate.Value.ToString("yyyy-MM-dd");
+            try
+            {
+                // Solo el propio usuario puede actualizar su perfil
+                var currentUserIdClaim = User.FindFirst("UserId")?.Value;
+                if (!int.TryParse(currentUserIdClaim, out int currentUserId) || currentUserId != id)
+                {
+                    return Forbid();
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { Success = false, Message = "Datos inválidos" });
+                }
+
+                await _userService.UpdateProfileAsync(id, updateProfileDto);
+                return Ok(new { Success = true, Message = "Perfil actualizado exitosamente" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando perfil del usuario: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        userDto.Bio = user.Bio;
-        userDto.PhotoURL = user.PhotoURL;
-
-        // Deserializar preferencias alimentarias
-        if (!string.IsNullOrEmpty(user.DietaryPreferencesJson))
+        [HttpPut("{id}/password")]
+        public async Task<IActionResult> UpdatePassword(int id, [FromBody] UpdatePasswordDto updatePasswordDto)
         {
-          userDto.DietaryPreferences = JsonSerializer.Deserialize<List<string>>(user.DietaryPreferencesJson);
+            try
+            {
+                // Solo el propio usuario puede cambiar su contraseña
+                var currentUserIdClaim = User.FindFirst("UserId")?.Value;
+                if (!int.TryParse(currentUserIdClaim, out int currentUserId) || currentUserId != id)
+                {
+                    return Forbid();
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new { Success = false, Message = "Datos inválidos" });
+                }
+
+                var success = await _userService.ChangePasswordAsync(id, updatePasswordDto.CurrentPassword, updatePasswordDto.NewPassword);
+                if (!success)
+                {
+                    return BadRequest(new { Success = false, Message = "Contraseña actual incorrecta" });
+                }
+
+                return Ok(new { Success = true, Message = "Contraseña actualizada exitosamente" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error actualizando contraseña del usuario: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
         }
 
-        return Ok(userDto);
-      }
-      catch (Exception ex)
-      {
-        return BadRequest(new { message = "Error al obtener usuario actual: " + ex.Message });
-      }
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            try
+            {
+                await _userService.DeleteUserAsync(id);
+                return Ok(new { Success = true, Message = "Usuario eliminado exitosamente" });
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error eliminando usuario: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
+        }
+
+        [HttpGet("{id}/with-addresses")]
+        public async Task<IActionResult> GetUserWithAddresses(int id)
+        {
+            try
+            {
+                // Solo admins pueden ver cualquier usuario, otros solo pueden verse a sí mismos
+                var currentUserIdClaim = User.FindFirst("UserId")?.Value;
+                var currentUserRole = User.FindFirst("Role")?.Value;
+
+                if (currentUserRole != "Admin" &&
+                    (!int.TryParse(currentUserIdClaim, out int currentUserId) || currentUserId != id))
+                {
+                    return Forbid();
+                }
+
+                var user = await _userService.GetUserWithAddressesAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { Success = false, Message = "Usuario no encontrado" });
+                }
+
+                return Ok(new { Success = true, Data = user });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo usuario con direcciones: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
+        }
+
+        [HttpGet("{id}/with-business")]
+        public async Task<IActionResult> GetUserWithBusiness(int id)
+        {
+            try
+            {
+                // Solo admins pueden ver cualquier usuario, otros solo pueden verse a sí mismos
+                var currentUserIdClaim = User.FindFirst("UserId")?.Value;
+                var currentUserRole = User.FindFirst("Role")?.Value;
+
+                if (currentUserRole != "Admin" &&
+                    (!int.TryParse(currentUserIdClaim, out int currentUserId) || currentUserId != id))
+                {
+                    return Forbid();
+                }
+
+                var user = await _userService.GetUserWithBusinessAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { Success = false, Message = "Usuario no encontrado" });
+                }
+
+                return Ok(new { Success = true, Data = user });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo usuario con negocio: {UserId}", id);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
+        }
+
+        [HttpGet("stats/count-by-role/{role}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserCountByRole(string role)
+        {
+            try
+            {
+                var count = await _userService.GetUserCountByRoleAsync(role);
+                return Ok(new { Success = true, Data = new { Role = role, Count = count } });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo conteo de usuarios por rol: {Role}", role);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
+        }
+
+        [HttpGet("active")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetActiveUsers()
+        {
+            try
+            {
+                var users = await _userService.GetActiveUsersAsync();
+                return Ok(new { Success = true, Data = users });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error obteniendo usuarios activos");
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
+        }
+
+        [HttpGet("check-email/{email}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CheckEmailExists(string email)
+        {
+            try
+            {
+                var exists = await _userService.EmailExistsAsync(email);
+                return Ok(new { Success = true, Data = new { Email = email, Exists = exists } });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verificando existencia de email: {Email}", email);
+                return StatusCode(500, new { Success = false, Message = "Error interno del servidor" });
+            }
+        }
     }
-  }
 }
