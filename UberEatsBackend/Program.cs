@@ -75,6 +75,8 @@ builder.Services.AddScoped<IBusinessService, BusinessService>();
 
 // Promotion services
 builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
+builder.Services.AddScoped<IProductOfferRepository, ProductOfferRepository>();
+builder.Services.AddScoped<IProductOfferService, ProductOfferService>();
 
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
@@ -159,7 +161,7 @@ builder.Services.AddLogging(logging =>
 {
     logging.ClearProviders();
     logging.AddConsole();
-    
+
     if (builder.Environment.IsDevelopment())
     {
         // En desarrollo, mostrar solo logs importantes
@@ -338,7 +340,7 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Error verificando servicios críticos");
-        
+
         if (ex.Message.Contains("S3") || ex.Message.Contains("Bucket"))
         {
             throw;

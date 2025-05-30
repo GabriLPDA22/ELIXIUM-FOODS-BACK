@@ -8,6 +8,7 @@ using UberEatsBackend.DTOs.RestaurantProduct;
 using UberEatsBackend.DTOs.User;
 using UberEatsBackend.DTOs.Address;
 using UberEatsBackend.DTOs.Business;
+using UberEatsBackend.DTOs.Offers; // ← NUEVA LÍNEA
 using UberEatsBackend.Models;
 
 namespace UberEatsBackend.Utils
@@ -129,6 +130,44 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.BusinessName, opt => opt.MapFrom(src => src.Business.Name));
       CreateMap<CreatePromotionDto, Promotion>();
       CreateMap<UpdatePromotionDto, Promotion>();
+
+      // ===== NUEVOS MAPPINGS PARA PRODUCT OFFERS =====
+
+      // ProductOffer mappings
+      CreateMap<ProductOffer, ProductOfferDto>()
+          .ForMember(dest => dest.RestaurantName, opt => opt.MapFrom(src => src.Restaurant.Name))
+          .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name))
+          .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl))
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive()))
+          .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.EndDate < DateTime.UtcNow))
+          .ForMember(dest => dest.RemainingUses, opt => opt.MapFrom(src =>
+              src.UsageLimit > 0 ? Math.Max(0, src.UsageLimit - src.UsageCount) : -1));
+
+      CreateMap<CreateProductOfferDto, ProductOffer>()
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UsageCount, opt => opt.MapFrom(src => 0))
+          .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "active"))
+          .ForMember(dest => dest.Restaurant, opt => opt.Ignore())
+          .ForMember(dest => dest.Product, opt => opt.Ignore())
+          .ForMember(dest => dest.RestaurantId, opt => opt.Ignore()); // Se asigna en el servicio
+
+      CreateMap<UpdateProductOfferDto, ProductOffer>()
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UsageCount, opt => opt.Ignore())
+          .ForMember(dest => dest.Restaurant, opt => opt.Ignore())
+          .ForMember(dest => dest.Product, opt => opt.Ignore())
+          .ForMember(dest => dest.RestaurantId, opt => opt.Ignore())
+          .ForMember(dest => dest.ProductId, opt => opt.Ignore())
+          .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+      // OrderItemOffer mappings
+      CreateMap<OrderItemOffer, AppliedOfferDto>()
+          .ForMember(dest => dest.OfferId, opt => opt.MapFrom(src => src.OfferId))
+          .ForMember(dest => dest.OfferName, opt => opt.MapFrom(src => src.OfferName));
     }
   }
 }
