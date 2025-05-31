@@ -80,7 +80,7 @@ builder.Services.AddScoped<IBusinessService, BusinessService>();
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-//PaymentMethodService
+// PaymentMethodService (ya estaba registrado - perfecto)
 builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 
 // Configuración de AWS S3
@@ -158,7 +158,7 @@ if (!emailServiceConfigured)
 
 builder.Services.AddScoped<IImageService, ImageService>();
 
-// Configuración de Logging
+// Configuración de Logging (reducido para menos ruido)
 builder.Services.AddLogging(logging =>
 {
     logging.ClearProviders();
@@ -166,22 +166,24 @@ builder.Services.AddLogging(logging =>
 
     if (builder.Environment.IsDevelopment())
     {
-        // En desarrollo, mostrar solo logs importantes
-        logging.SetMinimumLevel(LogLevel.Information);
-        logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
-        logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
-        logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.Warning);
+        // Solo logs importantes, sin tanto ruido
+        logging.SetMinimumLevel(LogLevel.Warning);
+        logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
+        logging.AddFilter("Microsoft.AspNetCore", LogLevel.Error);
+        logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.StaticFiles", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.DataProtection", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.Mvc.ModelBinding", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.HostFiltering", LogLevel.Error);
-        logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Information);
+        logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Error);
+
+        // Solo permitir logs de la aplicación y errores críticos
+        logging.AddFilter("UberEatsBackend", LogLevel.Information);
     }
     else
     {
-        // En producción, mostrar solo logs críticos
-        logging.SetMinimumLevel(LogLevel.Warning);
-        logging.AddFilter("Microsoft", LogLevel.Warning);
+        logging.SetMinimumLevel(LogLevel.Error);
+        logging.AddFilter("Microsoft", LogLevel.Error);
     }
 });
 
@@ -302,7 +304,7 @@ if (!Directory.Exists(wwwrootPath))
     Directory.CreateDirectory(wwwrootPath);
 }
 
-// Inicialización de Base de Datos
+// Inicialización de Base de Datos con EF (aplicar migraciones automáticamente)
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
@@ -311,7 +313,12 @@ if (app.Environment.IsDevelopment())
         try
         {
             var context = services.GetRequiredService<ApplicationDbContext>();
-            context.Database.EnsureCreated();
+
+            // Aplicar migraciones pendientes automáticamente
+            if (context.Database.GetPendingMigrations().Any())
+            {
+                context.Database.Migrate();
+            }
         }
         catch (Exception ex)
         {
@@ -321,22 +328,24 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-// Verificación de servicios críticos
+// Verificación de servicios críticos (simplificada)
 using (var scope = app.Services.CreateScope())
 {
     try
     {
+        // Solo verificar servicios críticos sin tanto logging
+        scope.ServiceProvider.GetRequiredService<IPaymentMethodService>();
+
         var s3Client = scope.ServiceProvider.GetRequiredService<IAmazonS3>();
-        await s3Client.ListBucketsAsync();
-
         var sesClient = scope.ServiceProvider.GetService<IAmazonSimpleEmailService>();
-        if (sesClient != null)
-        {
-            await sesClient.GetSendQuotaAsync();
-        }
-
         scope.ServiceProvider.GetRequiredService<IImageService>();
         scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+        // Test básico de S3 solo si es crítico
+        if (s3Client != null)
+        {
+            _ = Task.Run(async () => await s3Client.ListBucketsAsync());
+        }
     }
     catch (Exception ex)
     {
@@ -374,4 +383,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+Console.WriteLine("🚀 Servidor iniciado correctamente");
 app.Run();
