@@ -8,7 +8,8 @@ using UberEatsBackend.DTOs.RestaurantProduct;
 using UberEatsBackend.DTOs.User;
 using UberEatsBackend.DTOs.Address;
 using UberEatsBackend.DTOs.Business;
-using UberEatsBackend.DTOs.Offers; // ← NUEVA LÍNEA
+using UberEatsBackend.DTOs.Offers;
+using UberEatsBackend.DTOs.PaymentMethod;
 using UberEatsBackend.Models;
 
 namespace UberEatsBackend.Utils
@@ -156,6 +157,36 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.Product, opt => opt.Ignore())
           .ForMember(dest => dest.RestaurantId, opt => opt.Ignore())
           .ForMember(dest => dest.ProductId, opt => opt.Ignore())
+          .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+      // PaymentMethod mappings
+      CreateMap<PaymentMethod, PaymentMethodDto>()
+          .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString().ToLower()));
+
+      CreateMap<CreatePaymentMethodDto, PaymentMethod>()
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.UserId, opt => opt.Ignore())
+          .ForMember(dest => dest.LastFourDigits, opt => opt.Ignore())
+          .ForMember(dest => dest.ExpiryMonth, opt => opt.Ignore())
+          .ForMember(dest => dest.ExpiryYear, opt => opt.Ignore())
+          .ForMember(dest => dest.PaymentToken, opt => opt.Ignore())
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.User, opt => opt.Ignore());
+
+      CreateMap<UpdatePaymentMethodDto, PaymentMethod>()
+          .ForMember(dest => dest.Id, opt => opt.Ignore())
+          .ForMember(dest => dest.UserId, opt => opt.Ignore())
+          .ForMember(dest => dest.Type, opt => opt.Ignore())
+          .ForMember(dest => dest.LastFourDigits, opt => opt.Ignore())
+          .ForMember(dest => dest.ExpiryMonth, opt => opt.Ignore())
+          .ForMember(dest => dest.ExpiryYear, opt => opt.Ignore())
+          .ForMember(dest => dest.PaymentToken, opt => opt.Ignore())
+          .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+          .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+          .ForMember(dest => dest.User, opt => opt.Ignore())
           .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
       // OrderItemOffer mappings

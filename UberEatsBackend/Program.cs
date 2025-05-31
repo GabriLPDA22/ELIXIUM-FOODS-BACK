@@ -80,40 +80,43 @@ builder.Services.AddScoped<IBusinessService, BusinessService>();
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
+//PaymentMethodService
+builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
+
 // Configuración de AWS S3
 if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
 {
-    builder.Services.AddSingleton<IAmazonS3>(provider =>
+  builder.Services.AddSingleton<IAmazonS3>(provider =>
+  {
+    var config = new AmazonS3Config
     {
-        var config = new AmazonS3Config
-        {
-            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
-            Timeout = TimeSpan.FromMinutes(5),
-            MaxErrorRetry = 3,
-            UseHttp = false
-        };
+      RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+      Timeout = TimeSpan.FromMinutes(5),
+      MaxErrorRetry = 3,
+      UseHttp = false
+    };
 
-        return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+    return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+  });
+
+  // Configurar SES si está configurado
+  if (!string.IsNullOrEmpty(awsSettings.SES?.FromEmail))
+  {
+    builder.Services.AddSingleton<IAmazonSimpleEmailService>(provider =>
+    {
+      var config = new Amazon.SimpleEmail.AmazonSimpleEmailServiceConfig
+      {
+        RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+        Timeout = TimeSpan.FromMinutes(2),
+        MaxErrorRetry = 3
+      };
+
+      return new Amazon.SimpleEmail.AmazonSimpleEmailServiceClient(
+              awsSettings.AccessKey,
+              awsSettings.SecretKey,
+              config);
     });
-
-    // Configurar SES si está configurado
-    if (!string.IsNullOrEmpty(awsSettings.SES?.FromEmail))
-    {
-        builder.Services.AddSingleton<IAmazonSimpleEmailService>(provider =>
-        {
-            var config = new Amazon.SimpleEmail.AmazonSimpleEmailServiceConfig
-            {
-                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
-                Timeout = TimeSpan.FromMinutes(2),
-                MaxErrorRetry = 3
-            };
-
-            return new Amazon.SimpleEmail.AmazonSimpleEmailServiceClient(
-                awsSettings.AccessKey,
-                awsSettings.SecretKey,
-                config);
-        });
-    }
+  }
 }
 
 // Configuración de Storage
