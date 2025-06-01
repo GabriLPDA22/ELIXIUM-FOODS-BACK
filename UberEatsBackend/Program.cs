@@ -56,6 +56,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 // Restaurant services
 builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
+builder.Services.AddScoped<IRestaurantHourService, RestaurantHourService>();
 
 // Order services
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
@@ -68,6 +69,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 // RestaurantProduct services
 builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
 builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
+
 
 // offer services
 builder.Services.AddScoped<IProductOfferRepository, ProductOfferRepository>();

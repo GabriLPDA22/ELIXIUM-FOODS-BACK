@@ -29,6 +29,9 @@ namespace UberEatsBackend.Data
         // ===== NUEVA TABLA PARA MÉTODOS DE PAGO =====
         public DbSet<PaymentMethod> PaymentMethods { get; set; } = null!;
 
+        // ===== NUEVA TABLA PARA HORARIOS DE RESTAURANTES =====
+        public DbSet<RestaurantHour> RestaurantHours { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -62,6 +65,42 @@ namespace UberEatsBackend.Data
                 .WithMany(u => u.Addresses)
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ===== CONFIGURACIÓN PARA RESTAURANT HOURS =====
+            modelBuilder.Entity<RestaurantHour>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.DayOfWeek)
+                    .IsRequired()
+                    .HasMaxLength(20);
+
+                entity.Property(e => e.IsOpen)
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.OpenTime)
+                    .IsRequired();
+
+                entity.Property(e => e.CloseTime)
+                    .IsRequired();
+
+                // Relación con Restaurant
+                entity.HasOne(e => e.Restaurant)
+                    .WithMany()
+                    .HasForeignKey(e => e.RestaurantId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Índices para optimización
+                entity.HasIndex(e => e.RestaurantId)
+                    .HasDatabaseName("IX_RestaurantHour_RestaurantId");
+
+                entity.HasIndex(e => new { e.RestaurantId, e.DayOfWeek })
+                    .IsUnique()
+                    .HasDatabaseName("IX_RestaurantHour_Restaurant_Day");
+
+                entity.HasIndex(e => e.DayOfWeek)
+                    .HasDatabaseName("IX_RestaurantHour_DayOfWeek");
+            });
 
             // ===== CONFIGURACIÓN PARA PAYMENT METHODS =====
             modelBuilder.Entity<PaymentMethod>(entity =>

@@ -15,5 +15,6 @@ namespace UberEatsBackend.Services
     Task<ProductDto?> UpdateProductAsync(int id, UpdateProductDto productDto);
     Task<bool> DeleteProductAsync(int id);
     Task<bool> UpdateProductImageAsync(int productId, string? imageUrl);
+    Task<List<ProductDto>> SearchProductsAsync(string query, int? categoryId);
   }
 }

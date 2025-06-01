@@ -4,7 +4,11 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using UberEatsBackend.DTOs.Product;
+using UberEatsBackend.DTOs.RestaurantProduct;
 using UberEatsBackend.Services;
+using System;
+using UberEatsBackend.Repositories;
+using UberEatsBackend.Models;
 
 namespace UberEatsBackend.Controllers
 {
@@ -14,14 +18,22 @@ namespace UberEatsBackend.Controllers
   {
     private readonly IProductService _productService;
     private readonly IBusinessService _businessService;
+    private readonly IRepository<Category> _categoryRepository;
+    private readonly IRestaurantProductService _restaurantProductService;
 
-    public ProductsController(IProductService productService, IBusinessService businessService)
+
+    public ProductsController(
+        IProductService productService,
+        IBusinessService businessService,
+        IRepository<Category> categoryRepository,
+        IRestaurantProductService restaurantProductService)
     {
       _productService = productService;
       _businessService = businessService;
+      _categoryRepository = categoryRepository;
+      _restaurantProductService = restaurantProductService;
     }
 
-    // GET: api/Products
     [HttpGet]
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
@@ -30,7 +42,6 @@ namespace UberEatsBackend.Controllers
       return Ok(products);
     }
 
-    // GET: api/Products/5
     [HttpGet("{id}")]
     [AllowAnonymous]
     public async Task<ActionResult<ProductDto>> GetProduct(int id)
@@ -42,7 +53,33 @@ namespace UberEatsBackend.Controllers
       return Ok(product);
     }
 
-    // GET: api/Products/Business/5
+    [HttpGet("search")]
+    [AllowAnonymous]
+    public async Task<ActionResult<IEnumerable<ProductDto>>> SearchProducts([FromQuery] string query, [FromQuery] int? category = null)
+    {
+      try
+      {
+        var products = await _productService.SearchProductsAsync(query, category);
+        return Ok(products);
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
+    }
+
+    [HttpGet("{productId}/restaurants")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<RestaurantProductOfferingDto>>> GetRestaurantsForProduct(int productId)
+    {
+        var offerings = await _restaurantProductService.GetRestaurantOfferingsForProductAsync(productId);
+        if (offerings == null || !offerings.Any())
+        {
+            return NotFound("No restaurants found offering this product.");
+        }
+        return Ok(offerings);
+    }
+
     [HttpGet("Business/{businessId}")]
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetProductsByBusiness(int businessId)
@@ -51,7 +88,6 @@ namespace UberEatsBackend.Controllers
       return Ok(products);
     }
 
-    // GET: api/Products/Restaurant/5
     [HttpGet("Restaurant/{restaurantId}")]
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetProductsByRestaurant(int restaurantId)
@@ -60,7 +96,6 @@ namespace UberEatsBackend.Controllers
       return Ok(products);
     }
 
-    // GET: api/Products/Category/5
     [HttpGet("Category/{categoryId}")]
     [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetProductsByCategory(int categoryId)
@@ -69,14 +104,12 @@ namespace UberEatsBackend.Controllers
       return Ok(products);
     }
 
-    // POST: api/Products
     [HttpPost]
     [Authorize(Roles = "Admin,Business")]
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductDto createProductDto)
     {
-      // Verify authorization for the business that owns the category
-      if (!await IsAuthorizedForProductCategory(createProductDto.CategoryId))
-        return Forbid();
+      if (!await IsAuthorizedForProductCreation(createProductDto.BusinessId, createProductDto.CategoryId))
+        return Forbid("User not authorized for this business or category does not belong to the business.");
 
       try
       {
@@ -87,9 +120,12 @@ namespace UberEatsBackend.Controllers
       {
         return NotFound(ex.Message);
       }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
-    // PUT: api/Products/5
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Business")]
     public async Task<ActionResult<ProductDto>> UpdateProduct(int id, UpdateProductDto updateProductDto)
@@ -98,18 +134,22 @@ namespace UberEatsBackend.Controllers
       if (existingProduct == null)
         return NotFound();
 
-      // Verify authorization
       if (!await IsAuthorizedForBusiness(existingProduct.BusinessId))
         return Forbid();
 
-      var updatedProduct = await _productService.UpdateProductAsync(id, updateProductDto);
-      if (updatedProduct == null)
-        return NotFound();
-
-      return Ok(updatedProduct);
+      try
+      {
+        var updatedProduct = await _productService.UpdateProductAsync(id, updateProductDto);
+        if (updatedProduct == null)
+          return NotFound();
+        return Ok(updatedProduct);
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
-    // DELETE: api/Products/5
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Business")]
     public async Task<IActionResult> DeleteProduct(int id)
@@ -118,15 +158,20 @@ namespace UberEatsBackend.Controllers
       if (existingProduct == null)
         return NotFound();
 
-      // Verify authorization
       if (!await IsAuthorizedForBusiness(existingProduct.BusinessId))
         return Forbid();
 
-      var result = await _productService.DeleteProductAsync(id);
-      if (!result)
-        return NotFound();
-
-      return NoContent();
+      try
+      {
+        var result = await _productService.DeleteProductAsync(id);
+        if (!result)
+          return NotFound();
+        return NoContent();
+      }
+      catch (Exception ex)
+      {
+        return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
     }
 
     private async Task<bool> IsAuthorizedForBusiness(int businessId)
@@ -140,10 +185,20 @@ namespace UberEatsBackend.Controllers
       return await _businessService.IsUserAuthorizedForBusiness(businessId, userId, userRole ?? "");
     }
 
-    private async Task<bool> IsAuthorizedForProductCategory(int categoryId)
+    private async Task<bool> IsAuthorizedForProductCreation(int businessId, int categoryId)
     {
-      var userRole = User.FindFirstValue(ClaimTypes.Role);
-      return userRole == "Admin" || userRole == "Business";
+        var userRole = User.FindFirstValue(ClaimTypes.Role);
+        if (userRole == "Admin") return true;
+
+        if (userRole == "Business")
+        {
+            if (!await IsAuthorizedForBusiness(businessId)) return false;
+
+            var category = await _categoryRepository.GetByIdAsync(categoryId);
+            if (category == null || category.BusinessId != businessId) return false;
+            return true;
+        }
+        return false;
     }
   }
 }

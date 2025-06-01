@@ -10,5 +10,6 @@ namespace UberEatsBackend.Repositories
     Task<List<Product>> GetProductsByCategoryIdAsync(int categoryId);
     Task<Product?> GetProductWithDetailsAsync(int productId);
     Task<List<Product>> GetProductsByRestaurantIdAsync(int restaurantId);
+    Task<List<Product>> SearchAsync(string query, int? categoryId);
   }
 }
