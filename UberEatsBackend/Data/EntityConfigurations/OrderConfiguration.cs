@@ -1,59 +1,176 @@
-// Data/EntityConfigurations/OrderItemOfferConfiguration.cs
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using UberEatsBackend.Models;
 
 namespace UberEatsBackend.Data.EntityConfigurations
 {
-    public class OrderItemOfferConfiguration : IEntityTypeConfiguration<OrderItemOffer>
+  public static class OrderConfiguration
+  {
+    public static void ConfigureOrders(ModelBuilder modelBuilder)
     {
-        public void Configure(EntityTypeBuilder<OrderItemOffer> builder)
-        {
-            builder.HasKey(e => e.Id);
+      // Configuración de Order
+      modelBuilder.Entity<Order>(entity =>
+      {
+        entity.HasKey(e => e.Id);
 
-            builder.Property(e => e.OfferName)
-                .IsRequired()
-                .HasMaxLength(200);
+        entity.Property(e => e.Subtotal)
+                  .HasColumnType("decimal(10,2)")
+                  .IsRequired();
 
-            builder.Property(e => e.DiscountType)
-                .IsRequired()
-                .HasMaxLength(20);
+        entity.Property(e => e.DeliveryFee)
+                  .HasColumnType("decimal(10,2)")
+                  .IsRequired();
 
-            builder.Property(e => e.DiscountValue)
-                .HasColumnType("decimal(10,2)")
-                .IsRequired();
+        entity.Property(e => e.Total)
+                  .HasColumnType("decimal(10,2)")
+                  .IsRequired();
 
-            builder.Property(e => e.DiscountAmount)
-                .HasColumnType("decimal(10,2)")
-                .IsRequired();
+        entity.Property(e => e.Status)
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasDefaultValue("Pending");
 
-            builder.Property(e => e.OriginalPrice)
-                .HasColumnType("decimal(10,2)")
-                .IsRequired();
+        entity.Property(e => e.EstimatedDeliveryTime)
+                  .IsRequired();
 
-            builder.Property(e => e.FinalPrice)
-                .HasColumnType("decimal(10,2)")
-                .IsRequired();
+        entity.Property(e => e.CreatedAt)
+                  .IsRequired();
 
-            builder.Property(e => e.AppliedAt)
-                .IsRequired()
-                .HasDefaultValueSql("NOW()");
+        entity.Property(e => e.UpdatedAt)
+                  .IsRequired();
 
-            // Relación con OrderItem
-            builder.HasOne(e => e.OrderItem)
-                .WithMany()
-                .HasForeignKey(e => e.OrderItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+        // Relaciones
+        entity.HasOne(e => e.User)
+                  .WithMany(u => u.CustomerOrders)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
-            // Índices
-            builder.HasIndex(e => e.OrderItemId)
-                .HasDatabaseName("IX_OrderItemOffer_OrderItemId");
+        entity.HasOne(e => e.Restaurant)
+                  .WithMany(r => r.Orders)
+                  .HasForeignKey(e => e.RestaurantId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasIndex(e => e.OfferId)
-                .HasDatabaseName("IX_OrderItemOffer_OfferId");
+        entity.HasOne(e => e.DeliveryAddress)
+                  .WithMany()
+                  .HasForeignKey(e => e.DeliveryAddressId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasIndex(e => e.AppliedAt)
-                .HasDatabaseName("IX_OrderItemOffer_AppliedAt");
-        }
+        entity.HasOne(e => e.DeliveryPerson)
+                  .WithMany(u => u.DeliveryOrders)
+                  .HasForeignKey(e => e.DeliveryPersonId)
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+        // Índices
+        entity.HasIndex(e => e.UserId)
+                  .HasDatabaseName("IX_Order_UserId");
+
+        entity.HasIndex(e => e.RestaurantId)
+                  .HasDatabaseName("IX_Order_RestaurantId");
+
+        entity.HasIndex(e => e.Status)
+                  .HasDatabaseName("IX_Order_Status");
+
+        entity.HasIndex(e => e.CreatedAt)
+                  .HasDatabaseName("IX_Order_CreatedAt");
+
+        entity.HasIndex(e => new { e.UserId, e.Status })
+                  .HasDatabaseName("IX_Order_User_Status");
+
+        entity.HasIndex(e => new { e.RestaurantId, e.Status })
+                  .HasDatabaseName("IX_Order_Restaurant_Status");
+      });
+
+      // Configuración de OrderItem
+      modelBuilder.Entity<OrderItem>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+
+        entity.Property(e => e.Quantity)
+                  .IsRequired();
+
+        entity.Property(e => e.UnitPrice)
+                  .HasColumnType("decimal(10,2)")
+                  .IsRequired();
+
+        entity.Property(e => e.Subtotal)
+                  .HasColumnType("decimal(10,2)")
+                  .IsRequired();
+
+        // Relaciones
+        entity.HasOne(e => e.Order)
+                  .WithMany(o => o.OrderItems)
+                  .HasForeignKey(e => e.OrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(e => e.Product)
+                  .WithMany(p => p.OrderItems)
+                  .HasForeignKey(e => e.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+        // Índices
+        entity.HasIndex(e => e.OrderId)
+                  .HasDatabaseName("IX_OrderItem_OrderId");
+
+        entity.HasIndex(e => e.ProductId)
+                  .HasDatabaseName("IX_OrderItem_ProductId");
+      });
+
+      // Configuración de Payment
+      modelBuilder.Entity<Payment>(entity =>
+      {
+        entity.HasKey(e => e.Id);
+
+        entity.Property(e => e.PaymentMethod)
+                  .IsRequired()
+                  .HasMaxLength(50);
+
+        entity.Property(e => e.Status)
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasDefaultValue("Pending");
+
+        entity.Property(e => e.TransactionId)
+                  .HasMaxLength(200);
+
+        entity.Property(e => e.Amount)
+                  .HasColumnType("decimal(10,2)")
+                  .IsRequired();
+
+        entity.Property(e => e.PaymentReference)
+                  .HasMaxLength(200);
+
+        entity.Property(e => e.FailureReason)
+                  .HasMaxLength(500);
+
+        entity.Property(e => e.PaymentDate)
+                  .IsRequired();
+
+        entity.Property(e => e.CreatedAt)
+                  .IsRequired();
+
+        entity.Property(e => e.UpdatedAt)
+                  .IsRequired();
+
+        // Relación con Order
+        entity.HasOne(e => e.Order)
+                  .WithOne(o => o.Payment)
+                  .HasForeignKey<Payment>(e => e.OrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+        // Índices
+        entity.HasIndex(e => e.OrderId)
+                  .IsUnique()
+                  .HasDatabaseName("IX_Payment_OrderId");
+
+        entity.HasIndex(e => e.Status)
+                  .HasDatabaseName("IX_Payment_Status");
+
+        entity.HasIndex(e => e.TransactionId)
+                  .HasDatabaseName("IX_Payment_TransactionId");
+
+        entity.HasIndex(e => e.PaymentDate)
+                  .HasDatabaseName("IX_Payment_PaymentDate");
+      });
     }
+  }
 }

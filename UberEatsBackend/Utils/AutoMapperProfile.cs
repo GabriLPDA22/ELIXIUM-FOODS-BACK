@@ -145,18 +145,29 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null));
 
       CreateMap<Order, OrderDto>()
-          .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : null))
-          .ForMember(dest => dest.RestaurantName, opt => opt.MapFrom(src => src.Restaurant != null ? src.Restaurant.Name : null))
-          .ForMember(dest => dest.DeliveryAddress, opt => opt.MapFrom(src => src.DeliveryAddress != null ? $"{src.DeliveryAddress.Street}, {src.DeliveryAddress.City}" : null))
-          .ForMember(dest => dest.DeliveryPersonName, opt => opt.MapFrom(src => src.DeliveryPerson != null ? src.DeliveryPerson.FullName : null))
+          .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src =>
+              src.User != null ? src.User.FullName : string.Empty))
+          .ForMember(dest => dest.RestaurantName, opt => opt.MapFrom(src =>
+              src.Restaurant != null ? src.Restaurant.Name : string.Empty))
+          .ForMember(dest => dest.DeliveryAddress, opt => opt.MapFrom(src =>
+              src.DeliveryAddress != null ? $"{src.DeliveryAddress.Street}, {src.DeliveryAddress.City}" : string.Empty))
+          .ForMember(dest => dest.DeliveryPersonName, opt => opt.MapFrom(src =>
+              src.DeliveryPerson != null ? src.DeliveryPerson.FullName : null))
           .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems))
           .ForMember(dest => dest.Payment, opt => opt.MapFrom(src => src.Payment));
 
+      // OrderItem mappings
       CreateMap<OrderItem, OrderItemDto>()
-          .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
-          .ForMember(dest => dest.ProductDescription, opt => opt.MapFrom(src => src.Product != null ? src.Product.Description : null))
-          .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : null));
+          .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src =>
+              src.Product != null ? src.Product.Name : string.Empty))
+          .ForMember(dest => dest.ProductDescription, opt => opt.MapFrom(src =>
+              src.Product != null ? src.Product.Description : string.Empty))
+          .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src =>
+              src.Product != null ? src.Product.ImageUrl : string.Empty));
+
+      // Payment mappings
       CreateMap<Payment, PaymentDto>();
+
 
       CreateMap<ProductOffer, ProductOfferDto>()
           .ForMember(dest => dest.RestaurantName, opt => opt.MapFrom(src => src.Restaurant != null ? src.Restaurant.Name : null))
