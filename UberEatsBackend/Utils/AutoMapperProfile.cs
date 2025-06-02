@@ -144,6 +144,7 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.ProductId, opt => opt.MapFrom(src => src.ProductId))
           .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null));
 
+      // ✅ ARREGLO: Mapeo principal de Order actualizado
       CreateMap<Order, OrderDto>()
           .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src =>
               src.User != null ? src.User.FullName : string.Empty))
@@ -155,16 +156,32 @@ namespace UberEatsBackend.Utils
               src.DeliveryPerson != null ? src.DeliveryPerson.FullName : null))
           .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems))
           .ForMember(dest => dest.Payment, opt => opt.MapFrom(src => src.Payment))
-          .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.PaymentId)); // ✅ NUEVO: Mapear PaymentId
+          .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.PaymentId))
+          // ✅ NUEVO: Mapear objetos completos
+          .ForMember(dest => dest.User, opt => opt.MapFrom(src => src.User))
+          .ForMember(dest => dest.Restaurant, opt => opt.MapFrom(src => src.Restaurant))
+          .ForMember(dest => dest.DeliveryAddressDetails, opt => opt.MapFrom(src => src.DeliveryAddress))
+          .ForMember(dest => dest.DeliveryPerson, opt => opt.MapFrom(src => src.DeliveryPerson));
 
-      // OrderItem mappings
+      // ✅ NUEVO: Mapeos para los DTOs específicos de Order
+      CreateMap<User, OrderUserDto>();
+
+      CreateMap<Restaurant, OrderRestaurantDto>();
+
+      CreateMap<Address, OrderAddressDto>();
+
+      CreateMap<Product, OrderProductDto>();
+
+      // OrderItem mappings actualizados
       CreateMap<OrderItem, OrderItemDto>()
           .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src =>
               src.Product != null ? src.Product.Name : string.Empty))
           .ForMember(dest => dest.ProductDescription, opt => opt.MapFrom(src =>
               src.Product != null ? src.Product.Description : string.Empty))
           .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src =>
-              src.Product != null ? src.Product.ImageUrl : string.Empty));
+              src.Product != null ? src.Product.ImageUrl : string.Empty))
+          // ✅ NUEVO: Mapear objeto completo del producto
+          .ForMember(dest => dest.Product, opt => opt.MapFrom(src => src.Product));
 
       // ✅ ARREGLO: Payment mappings actualizados (sin OrderId)
       CreateMap<Payment, PaymentDto>()
@@ -174,7 +191,6 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.TransactionId, opt => opt.MapFrom(src => src.TransactionId))
           .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.Amount))
           .ForMember(dest => dest.PaymentDate, opt => opt.MapFrom(src => src.PaymentDate));
-
 
       CreateMap<ProductOffer, ProductOfferDto>()
           .ForMember(dest => dest.RestaurantName, opt => opt.MapFrom(src => src.Restaurant != null ? src.Restaurant.Name : null))

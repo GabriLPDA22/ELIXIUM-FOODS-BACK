@@ -30,6 +30,12 @@ namespace UberEatsBackend.DTOs.Order
 
         // ✅ MANTENER: Payment para mostrar detalles del pago
         public PaymentDto? Payment { get; set; }
+
+        // ✅ NUEVO: Objetos completos para el frontend
+        public OrderUserDto? User { get; set; }
+        public OrderRestaurantDto? Restaurant { get; set; }
+        public OrderAddressDto? DeliveryAddressDetails { get; set; }
+        public OrderUserDto? DeliveryPerson { get; set; }
     }
 
     public class OrderItemDto
@@ -43,6 +49,9 @@ namespace UberEatsBackend.DTOs.Order
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal Subtotal { get; set; }
+
+        // ✅ NUEVO: Objeto completo del producto
+        public OrderProductDto? Product { get; set; }
     }
 
     public class PaymentDto
@@ -53,5 +62,49 @@ namespace UberEatsBackend.DTOs.Order
         public string? TransactionId { get; set; }
         public decimal Amount { get; set; }
         public DateTime PaymentDate { get; set; }
+    }
+
+    // ✅ NUEVO: DTOs específicos para Order
+    public class OrderUserDto
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
+        public string FullName => $"{FirstName} {LastName}".Trim();
+    }
+
+    public class OrderRestaurantDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
+        public decimal DeliveryFee { get; set; }
+        public int EstimatedDeliveryTime { get; set; }
+        public bool IsOpen { get; set; }
+    }
+
+    public class OrderAddressDto
+    {
+        public int Id { get; set; }
+        public string Street { get; set; } = string.Empty;
+        public string? Number { get; set; }
+        public string? Interior { get; set; }
+        public string City { get; set; } = string.Empty;
+        public string? State { get; set; }
+        public string? ZipCode { get; set; }
+        public string? Phone { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class OrderProductDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
+        public decimal BasePrice { get; set; }
     }
 }
