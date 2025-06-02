@@ -1,3 +1,4 @@
+// UberEatsBackend/Repositories/ProductOfferRepository.cs
 using Microsoft.EntityFrameworkCore;
 using UberEatsBackend.Data;
 using UberEatsBackend.Models;
@@ -50,16 +51,6 @@ namespace UberEatsBackend.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<ProductOffer>> GetByRestaurantAndProductAsync(int restaurantId, int productId)
-        {
-            return await _context.ProductOffers
-                .Include(po => po.Restaurant)
-                .Include(po => po.Product)
-                .Where(po => po.RestaurantId == restaurantId && po.ProductId == productId)
-                .OrderByDescending(po => po.CreatedAt)
-                .ToListAsync();
-        }
-
         public async Task<List<ProductOffer>> GetActiveOffersAsync()
         {
             var now = DateTime.UtcNow;
@@ -67,9 +58,10 @@ namespace UberEatsBackend.Repositories
                 .Include(po => po.Restaurant)
                 .Include(po => po.Product)
                 .Where(po => po.Status == "active" &&
-                           po.StartDate <= now &&
-                           po.EndDate >= now &&
-                           (po.UsageLimit == 0 || po.UsageCount < po.UsageLimit))
+                            po.StartDate <= now &&
+                            po.EndDate >= now &&
+                            (po.UsageLimit == 0 || po.UsageCount < po.UsageLimit))
+                .OrderByDescending(po => po.CreatedAt)
                 .ToListAsync();
         }
 
@@ -80,25 +72,30 @@ namespace UberEatsBackend.Repositories
                 .Include(po => po.Restaurant)
                 .Include(po => po.Product)
                 .Where(po => po.RestaurantId == restaurantId &&
-                           po.Status == "active" &&
-                           po.StartDate <= now &&
-                           po.EndDate >= now &&
-                           (po.UsageLimit == 0 || po.UsageCount < po.UsageLimit))
+                            po.Status == "active" &&
+                            po.StartDate <= now &&
+                            po.EndDate >= now &&
+                            (po.UsageLimit == 0 || po.UsageCount < po.UsageLimit))
+                .OrderByDescending(po => po.CreatedAt)
                 .ToListAsync();
         }
 
-        public async Task<List<ProductOffer>> GetActiveOffersByProductAsync(int productId)
+        // ✅ NUEVO: Método para obtener oferta activa de un producto específico en un restaurante
+        public async Task<ProductOffer?> GetActiveOfferForProductInRestaurantAsync(int restaurantId, int productId)
         {
             var now = DateTime.UtcNow;
+
             return await _context.ProductOffers
                 .Include(po => po.Restaurant)
                 .Include(po => po.Product)
-                .Where(po => po.ProductId == productId &&
-                           po.Status == "active" &&
-                           po.StartDate <= now &&
-                           po.EndDate >= now &&
-                           (po.UsageLimit == 0 || po.UsageCount < po.UsageLimit))
-                .ToListAsync();
+                .Where(po => po.RestaurantId == restaurantId &&
+                             po.ProductId == productId &&
+                             po.Status == "active" &&
+                             po.StartDate <= now &&
+                             po.EndDate >= now &&
+                             (po.UsageLimit == 0 || po.UsageCount < po.UsageLimit))
+                .OrderByDescending(po => po.CreatedAt) // En caso de múltiples ofertas, tomar la más reciente
+                .FirstOrDefaultAsync();
         }
 
         public async Task<ProductOffer> CreateAsync(ProductOffer productOffer)
@@ -119,7 +116,7 @@ namespace UberEatsBackend.Repositories
             _context.ProductOffers.Update(productOffer);
             await _context.SaveChangesAsync();
 
-            return productOffer;
+            return await GetByIdAsync(productOffer.Id) ?? productOffer;
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -129,16 +126,8 @@ namespace UberEatsBackend.Repositories
                 return false;
 
             _context.ProductOffers.Remove(productOffer);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<List<ProductOffer>> GetExpiredOffersAsync()
-        {
-            var now = DateTime.UtcNow;
-            return await _context.ProductOffers
-                .Where(po => po.Status == "active" && po.EndDate < now)
-                .ToListAsync();
+            var result = await _context.SaveChangesAsync();
+            return result > 0;
         }
 
         public async Task<bool> IncrementUsageCountAsync(int offerId)
@@ -150,8 +139,8 @@ namespace UberEatsBackend.Repositories
             offer.UsageCount++;
             offer.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-            return true;
+            var result = await _context.SaveChangesAsync();
+            return result > 0;
         }
     }
 }

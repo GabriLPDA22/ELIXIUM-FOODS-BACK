@@ -1,3 +1,4 @@
+// UberEatsBackend/Services/ProductOfferService.cs
 using AutoMapper;
 using UberEatsBackend.DTOs.Offers;
 using UberEatsBackend.Models;
@@ -64,6 +65,33 @@ namespace UberEatsBackend.Services
     {
       var offers = await _productOfferRepository.GetActiveOffersByRestaurantAsync(restaurantId);
       return MapToProductOfferDtos(offers);
+    }
+
+    // ✅ NUEVO: Método para obtener oferta activa de un producto específico en un restaurante
+    public async Task<ActiveOfferResponseDto?> GetActiveOfferForProductInRestaurantAsync(int restaurantId, int productId)
+    {
+      try
+      {
+        var offer = await _productOfferRepository.GetActiveOfferForProductInRestaurantAsync(restaurantId, productId);
+
+        if (offer == null)
+        {
+          _logger.LogInformation("No active offer found for product {ProductId} in restaurant {RestaurantId}",
+              productId, restaurantId);
+          return null;
+        }
+
+        _logger.LogInformation("Active offer found: {OfferId} for product {ProductId} in restaurant {RestaurantId}",
+            offer.Id, productId, restaurantId);
+
+        return MapToActiveOfferResponseDto(offer);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error getting active offer for product {ProductId} in restaurant {RestaurantId}",
+            productId, restaurantId);
+        throw;
+      }
     }
 
     public async Task<ProductOfferDto> CreateOfferAsync(int restaurantId, CreateProductOfferDto createDto)
@@ -352,6 +380,25 @@ namespace UberEatsBackend.Services
         IsActive = offer.IsActive(),
         IsExpired = offer.EndDate < DateTime.UtcNow,
         RemainingUses = offer.UsageLimit > 0 ? Math.Max(0, offer.UsageLimit - offer.UsageCount) : -1
+      };
+    }
+
+    // ✅ NUEVO: Método auxiliar de mapeo para ActiveOfferResponseDto
+    private ActiveOfferResponseDto MapToActiveOfferResponseDto(ProductOffer offer)
+    {
+      return new ActiveOfferResponseDto
+      {
+        OfferId = offer.Id,
+        Name = offer.Name,
+        Description = offer.Description,
+        IsActive = offer.IsActive(),
+        DiscountType = offer.DiscountType,
+        DiscountValue = offer.DiscountValue,
+        MinimumOrderAmount = offer.MinimumOrderAmount,
+        MinimumQuantity = offer.MinimumQuantity,
+        StartDate = offer.StartDate,
+        EndDate = offer.EndDate,
+        RemainingUses = offer.UsageLimit > 0 ? Math.Max(0, offer.UsageLimit - offer.UsageCount) : null
       };
     }
 

@@ -1,3 +1,4 @@
+// UberEatsBackend/Utils/AutoMapperProfile.cs
 using AutoMapper;
 using UberEatsBackend.DTOs.Auth;
 using UberEatsBackend.DTOs.Category;
@@ -200,6 +201,13 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.EndDate < DateTime.UtcNow))
           .ForMember(dest => dest.RemainingUses, opt => opt.MapFrom(src =>
               src.UsageLimit > 0 ? Math.Max(0, src.UsageLimit - src.UsageCount) : -1));
+
+      // ✅ NUEVO: Mapeo para ActiveOfferResponseDto
+      CreateMap<ProductOffer, ActiveOfferResponseDto>()
+          .ForMember(dest => dest.OfferId, opt => opt.MapFrom(src => src.Id))
+          .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IsActive()))
+          .ForMember(dest => dest.RemainingUses, opt => opt.MapFrom(src =>
+              src.UsageLimit > 0 ? Math.Max(0, src.UsageLimit - src.UsageCount) : (int?)null));
 
       CreateMap<CreateProductOfferDto, ProductOffer>()
           .ForMember(dest => dest.Id, opt => opt.Ignore())
