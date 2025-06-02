@@ -25,8 +25,8 @@ RUN mkdir -p wwwroot/uploads
 # Copy published application
 COPY --from=publish /app/publish .
 
-# Set environment variables
-ENV ASPNETCORE_ENVIRONMENT=Production
+# Set environment variables para Development
+ENV ASPNETCORE_ENVIRONMENT=Development
 ENV ASPNETCORE_URLS=http://+:8080
 
 # Expose port

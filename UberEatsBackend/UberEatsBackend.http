@@ -1,4 +1,4 @@
-@UberEatsBackend_HostAddress = http://localhost:5290
+@UberEatsBackend_HostAddress = http://34.224.104.96:3000
 
 GET {{UberEatsBackend_HostAddress}}/weatherforecast/
 Accept: application/json
