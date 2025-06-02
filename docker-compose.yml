@@ -1,0 +1,65 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ubereats-postgres
+    environment:
+      POSTGRES_DB: ubereats_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ubereats-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ubereats-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - AppSettings__ConnectionString=Host=postgres;Database=ubereats_db;Username=postgres;Password=postgres123;
+      - AppSettings__JwtSecret=mi-super-secreto-jwt-key-que-debe-ser-muy-largo-para-ser-seguro-123456789
+      - AppSettings__JwtIssuer=UberEatsBackend
+      - AppSettings__JwtAudience=UberEatsBackend
+      - AWS__AccessKey=your-aws-access-key
+      - AWS__SecretKey=your-aws-secret-key
+      - AWS__Region=us-east-1
+      - AWS__S3__BucketName=your-bucket-name
+      - AWS__S3__BaseUrl=https://s3.us-east-1.amazonaws.com
+      - AWS__SES__FromEmail=noreply@yourdomain.com
+      - SendGrid__ApiKey=your-sendgrid-api-key
+      - SendGrid__FromEmail=noreply@yourdomain.com
+      - StorageSettings__UseS3Storage=true
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - ubereats-network
+    volumes:
+      - ./uploads:/app/wwwroot/uploads
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ubereats-nginx
+    ports:
+      - "3000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - ubereats-network
+
+volumes:
+  postgres_data:
+
+networks:
+  ubereats-network:
+    driver: bridge
