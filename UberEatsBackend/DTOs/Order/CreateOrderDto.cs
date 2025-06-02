@@ -17,9 +17,15 @@ namespace UberEatsBackend.DTOs.Order
         [MinLength(1, ErrorMessage = "At least one item is required")]
         public List<CreateOrderItemDto> Items { get; set; } = new List<CreateOrderItemDto>();
 
+        // ✅ MANTENER: PaymentMethodId para crear el Payment, luego se asigna PaymentId al Order
         [Required]
-        [StringLength(50)]
-        public string PaymentMethod { get; set; } = "card";
+        [Range(1, int.MaxValue, ErrorMessage = "PaymentMethodId must be a positive number")]
+        public int PaymentMethodId { get; set; }
+
+        // Campos opcionales para delivery programado
+        public string? DeliveryType { get; set; }
+        public string? ScheduledDate { get; set; }
+        public string? DeliveryInstructions { get; set; }
     }
 
     public class CreateOrderItemDto
@@ -31,5 +37,9 @@ namespace UberEatsBackend.DTOs.Order
         [Required]
         [Range(1, 100, ErrorMessage = "Quantity must be between 1 and 100")]
         public int Quantity { get; set; }
+
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "UnitPrice must be greater than 0")]
+        public decimal UnitPrice { get; set; }
     }
 }

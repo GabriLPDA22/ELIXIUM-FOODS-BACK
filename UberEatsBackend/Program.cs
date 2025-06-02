@@ -58,10 +58,6 @@ builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<IRestaurantHourService, RestaurantHourService>();
 
-// Order services
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-
 // Product services
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -70,8 +66,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
 builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
 
-
-// offer services
+// Offer services
 builder.Services.AddScoped<IProductOfferRepository, ProductOfferRepository>();
 builder.Services.AddScoped<IProductOfferService, ProductOfferService>();
 
@@ -82,8 +77,12 @@ builder.Services.AddScoped<IBusinessService, BusinessService>();
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
-// PaymentMethodService (ya estaba registrado - perfecto)
+// ✅ ARREGLO: PaymentMethodService DEBE registrarse ANTES del OrderService
 builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
+
+// ✅ ARREGLO: Order services - ahora OrderService puede recibir IPaymentMethodService
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 // Configuración de AWS S3
 if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
@@ -337,6 +336,7 @@ using (var scope = app.Services.CreateScope())
     {
         // Solo verificar servicios críticos sin tanto logging
         scope.ServiceProvider.GetRequiredService<IPaymentMethodService>();
+        scope.ServiceProvider.GetRequiredService<IOrderService>(); // ✅ ARREGLO: Verificar que OrderService se puede crear
 
         var s3Client = scope.ServiceProvider.GetRequiredService<IAmazonS3>();
         var sesClient = scope.ServiceProvider.GetService<IAmazonSimpleEmailService>();

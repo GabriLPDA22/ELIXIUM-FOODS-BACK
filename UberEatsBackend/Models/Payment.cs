@@ -5,50 +5,29 @@ namespace UberEatsBackend.Models
     public class Payment
     {
         public int Id { get; set; }
-        public string PaymentMethod { get; set; } = string.Empty; // card, cash, paypal, etc.
+        public string PaymentMethod { get; set; } = string.Empty; // "Visa •••• 1234", "PayPal (email)", etc.
         public string Status { get; set; } = "Pending"; // Pending, Completed, Failed, Refunded
         public string? TransactionId { get; set; }
         public decimal Amount { get; set; }
         public string? PaymentReference { get; set; }
         public string? FailureReason { get; set; }
 
-        private DateTime _paymentDate;
-        private DateTime _createdAt;
-        private DateTime _updatedAt;
+        // ✅ ARREGLO: Fechas sin conversión automática
+        public DateTime PaymentDate { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
 
-        public DateTime PaymentDate
-        {
-            get => _paymentDate;
-            set => _paymentDate = value.Kind == DateTimeKind.Unspecified ?
-                DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-                value.ToUniversalTime();
-        }
-
-        public DateTime CreatedAt
-        {
-            get => _createdAt;
-            set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
-                DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-                value.ToUniversalTime();
-        }
-
-        public DateTime UpdatedAt
-        {
-            get => _updatedAt;
-            set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
-                DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-                value.ToUniversalTime();
-        }
-
-        // Relación con Order
-        public int OrderId { get; set; }
-        public Order Order { get; set; } = null!;
+        // ✅ ARREGLO: Eliminada relación OrderId - ahora es Order.PaymentId → Payment.Id
+        // public int OrderId { get; set; } // ❌ ELIMINADO
+        public Order? Order { get; set; } // ✅ Navigation property (1:1)
 
         public Payment()
         {
-            CreatedAt = DateTime.UtcNow;
-            UpdatedAt = DateTime.UtcNow;
-            PaymentDate = DateTime.UtcNow;
+            // ✅ ARREGLO: Asignar fechas UTC sin conversión
+            var utcNow = DateTime.UtcNow;
+            CreatedAt = utcNow;
+            UpdatedAt = utcNow;
+            PaymentDate = utcNow;
         }
 
         // Métodos para cambiar estado

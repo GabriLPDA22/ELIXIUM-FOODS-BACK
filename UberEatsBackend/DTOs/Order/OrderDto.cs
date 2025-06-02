@@ -15,6 +15,10 @@ namespace UberEatsBackend.DTOs.Order
         public string DeliveryAddress { get; set; } = string.Empty;
         public int? DeliveryPersonId { get; set; }
         public string? DeliveryPersonName { get; set; }
+
+        // ✅ ARREGLO: Añadir PaymentId
+        public int? PaymentId { get; set; }
+
         public decimal Subtotal { get; set; }
         public decimal DeliveryFee { get; set; }
         public decimal Total { get; set; }
@@ -23,6 +27,8 @@ namespace UberEatsBackend.DTOs.Order
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public List<OrderItemDto> OrderItems { get; set; } = new List<OrderItemDto>();
+
+        // ✅ MANTENER: Payment para mostrar detalles del pago
         public PaymentDto? Payment { get; set; }
     }
 
@@ -42,7 +48,6 @@ namespace UberEatsBackend.DTOs.Order
     public class PaymentDto
     {
         public int Id { get; set; }
-        public int OrderId { get; set; }
         public string PaymentMethod { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? TransactionId { get; set; }

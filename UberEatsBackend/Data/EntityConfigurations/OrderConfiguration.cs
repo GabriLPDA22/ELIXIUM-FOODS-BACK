@@ -29,14 +29,24 @@ namespace UberEatsBackend.Data.EntityConfigurations
                   .HasMaxLength(50)
                   .HasDefaultValue("Pending");
 
+        // ✅ ARREGLO: Fechas con conversión UTC
         entity.Property(e => e.EstimatedDeliveryTime)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v.ToUniversalTime(),
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
         entity.Property(e => e.CreatedAt)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v.ToUniversalTime(),
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
         entity.Property(e => e.UpdatedAt)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v.ToUniversalTime(),
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
         // Relaciones
         entity.HasOne(e => e.User)
@@ -60,6 +70,13 @@ namespace UberEatsBackend.Data.EntityConfigurations
                   .IsRequired(false)
                   .OnDelete(DeleteBehavior.Restrict);
 
+        // ✅ ARREGLO: Nueva relación con Payment - Order tiene PaymentId
+        entity.HasOne(e => e.Payment)
+                  .WithOne(p => p.Order)
+                  .HasForeignKey<Order>(e => e.PaymentId)
+                  .IsRequired(false)
+                  .OnDelete(DeleteBehavior.SetNull);
+
         // Índices
         entity.HasIndex(e => e.UserId)
                   .HasDatabaseName("IX_Order_UserId");
@@ -78,6 +95,11 @@ namespace UberEatsBackend.Data.EntityConfigurations
 
         entity.HasIndex(e => new { e.RestaurantId, e.Status })
                   .HasDatabaseName("IX_Order_Restaurant_Status");
+
+        // ✅ ARREGLO: Nuevo índice para PaymentId
+        entity.HasIndex(e => e.PaymentId)
+                  .IsUnique()
+                  .HasDatabaseName("IX_Order_PaymentId");
       });
 
       // Configuración de OrderItem
@@ -115,14 +137,14 @@ namespace UberEatsBackend.Data.EntityConfigurations
                   .HasDatabaseName("IX_OrderItem_ProductId");
       });
 
-      // Configuración de Payment
+      // ✅ ARREGLO: Configuración de Payment SIN OrderId
       modelBuilder.Entity<Payment>(entity =>
       {
         entity.HasKey(e => e.Id);
 
         entity.Property(e => e.PaymentMethod)
                   .IsRequired()
-                  .HasMaxLength(50);
+                  .HasMaxLength(100); // ✅ Aumentado para "Visa •••• 1234"
 
         entity.Property(e => e.Status)
                   .IsRequired()
@@ -142,30 +164,34 @@ namespace UberEatsBackend.Data.EntityConfigurations
         entity.Property(e => e.FailureReason)
                   .HasMaxLength(500);
 
+        // ✅ ARREGLO: Fechas con conversión UTC
         entity.Property(e => e.PaymentDate)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v.ToUniversalTime(),
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
         entity.Property(e => e.CreatedAt)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v.ToUniversalTime(),
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
         entity.Property(e => e.UpdatedAt)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v.ToUniversalTime(),
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
-        // Relación con Order
-        entity.HasOne(e => e.Order)
-                  .WithOne(o => o.Payment)
-                  .HasForeignKey<Payment>(e => e.OrderId)
-                  .OnDelete(DeleteBehavior.Cascade);
+        // ✅ ARREGLO: YA NO hay relación con Order aquí
+        // La relación está definida en Order con PaymentId
 
-        // Índices
-        entity.HasIndex(e => e.OrderId)
-                  .IsUnique()
-                  .HasDatabaseName("IX_Payment_OrderId");
-
+        // ✅ ARREGLO: Índices actualizados (sin OrderId)
         entity.HasIndex(e => e.Status)
                   .HasDatabaseName("IX_Payment_Status");
 
         entity.HasIndex(e => e.TransactionId)
+                  .IsUnique()
                   .HasDatabaseName("IX_Payment_TransactionId");
 
         entity.HasIndex(e => e.PaymentDate)

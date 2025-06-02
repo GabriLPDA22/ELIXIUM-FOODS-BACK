@@ -9,35 +9,13 @@ namespace UberEatsBackend.Models
         public decimal Subtotal { get; set; }
         public decimal DeliveryFee { get; set; }
         public decimal Total { get; set; } // Solo Subtotal + DeliveryFee
+
         public string Status { get; set; } = "Pending"; // Pending, Accepted, Preparing, ReadyForPickup, OnTheWay, Delivered, Cancelled
 
-        private DateTime _estimatedDeliveryTime;
-        private DateTime _createdAt;
-        private DateTime _updatedAt;
-
-        public DateTime EstimatedDeliveryTime
-        {
-            get => _estimatedDeliveryTime;
-            set => _estimatedDeliveryTime = value.Kind == DateTimeKind.Unspecified ?
-                DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-                value.ToUniversalTime();
-        }
-
-        public DateTime CreatedAt
-        {
-            get => _createdAt;
-            set => _createdAt = value.Kind == DateTimeKind.Unspecified ?
-                DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-                value.ToUniversalTime();
-        }
-
-        public DateTime UpdatedAt
-        {
-            get => _updatedAt;
-            set => _updatedAt = value.Kind == DateTimeKind.Unspecified ?
-                DateTime.SpecifyKind(value, DateTimeKind.Utc) :
-                value.ToUniversalTime();
-        }
+        // ✅ ARREGLO: Campos de fecha sin conversión automática
+        public DateTime EstimatedDeliveryTime { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
 
         // Relaciones
         public int UserId { get; set; }
@@ -52,14 +30,20 @@ namespace UberEatsBackend.Models
         public int? DeliveryPersonId { get; set; }
         public User? DeliveryPerson { get; set; }
 
+        // ✅ ARREGLO: Cambiar de PaymentMethodId a PaymentId
+        public int? PaymentId { get; set; }
+        public Payment? Payment { get; set; }
+
         // Navigation properties
         public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
-        public Payment? Payment { get; set; }
 
         public Order()
         {
-            CreatedAt = DateTime.UtcNow;
-            UpdatedAt = DateTime.UtcNow;
+            // ✅ ARREGLO: Asignar fechas UTC sin conversión
+            var utcNow = DateTime.UtcNow;
+            CreatedAt = utcNow;
+            UpdatedAt = utcNow;
+            EstimatedDeliveryTime = utcNow.AddMinutes(30); // Default 30 min
         }
     }
 }

@@ -154,7 +154,8 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.DeliveryPersonName, opt => opt.MapFrom(src =>
               src.DeliveryPerson != null ? src.DeliveryPerson.FullName : null))
           .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems))
-          .ForMember(dest => dest.Payment, opt => opt.MapFrom(src => src.Payment));
+          .ForMember(dest => dest.Payment, opt => opt.MapFrom(src => src.Payment))
+          .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.PaymentId)); // ✅ NUEVO: Mapear PaymentId
 
       // OrderItem mappings
       CreateMap<OrderItem, OrderItemDto>()
@@ -165,8 +166,14 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src =>
               src.Product != null ? src.Product.ImageUrl : string.Empty));
 
-      // Payment mappings
-      CreateMap<Payment, PaymentDto>();
+      // ✅ ARREGLO: Payment mappings actualizados (sin OrderId)
+      CreateMap<Payment, PaymentDto>()
+          .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+          .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod))
+          .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+          .ForMember(dest => dest.TransactionId, opt => opt.MapFrom(src => src.TransactionId))
+          .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => src.Amount))
+          .ForMember(dest => dest.PaymentDate, opt => opt.MapFrom(src => src.PaymentDate));
 
 
       CreateMap<ProductOffer, ProductOfferDto>()

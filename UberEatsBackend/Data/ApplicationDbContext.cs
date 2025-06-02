@@ -1,4 +1,5 @@
-// UberEatsBackend/Data/ApplicationDbContext.cs
+// UberEatsBackend/Data/ApplicationDbContext.cs - ACTUALIZADO
+
 using Microsoft.EntityFrameworkCore;
 using UberEatsBackend.Data.EntityConfigurations;
 using UberEatsBackend.Models;
@@ -25,11 +26,7 @@ namespace UberEatsBackend.Data
         public DbSet<BusinessHour> BusinessHours { get; set; } = null!;
         public DbSet<ProductOffer> ProductOffers { get; set; } = null!;
         public DbSet<OrderItemOffer> OrderItemOffers { get; set; } = null!;
-
-        // ===== NUEVA TABLA PARA MÉTODOS DE PAGO =====
         public DbSet<PaymentMethod> PaymentMethods { get; set; } = null!;
-
-        // ===== NUEVA TABLA PARA HORARIOS DE RESTAURANTES =====
         public DbSet<RestaurantHour> RestaurantHours { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -45,19 +42,160 @@ namespace UberEatsBackend.Data
             modelBuilder.ApplyConfiguration(new ProductConfiguration());
             modelBuilder.ApplyConfiguration(new RestaurantProductConfiguration());
 
-            // Configure Order relationships
-            modelBuilder.Entity<Order>()
-                .HasOne(o => o.DeliveryPerson)
-                .WithMany(u => u.DeliveryOrders)
-                .HasForeignKey(o => o.DeliveryPersonId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.Restrict);
+            // ===== CONFIGURACIÓN DE ORDER =====
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(e => e.Id);
 
-            modelBuilder.Entity<Order>()
-                .HasOne(o => o.User)
-                .WithMany(u => u.CustomerOrders)
-                .HasForeignKey(o => o.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                // Propiedades decimales
+                entity.Property(e => e.Subtotal)
+                    .HasColumnType("decimal(10,2)")
+                    .IsRequired();
+
+                entity.Property(e => e.DeliveryFee)
+                    .HasColumnType("decimal(10,2)")
+                    .IsRequired();
+
+                entity.Property(e => e.Total)
+                    .HasColumnType("decimal(10,2)")
+                    .IsRequired();
+
+                // Status
+                entity.Property(e => e.Status)
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Pending");
+
+                // ✅ ARREGLO: Fechas sin conversión automática - almacenar como UTC
+                entity.Property(e => e.CreatedAt)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.ToUniversalTime(), // Asegurar que se guarde como UTC
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc)); // Leer como UTC
+
+                entity.Property(e => e.UpdatedAt)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.ToUniversalTime(), // Asegurar que se guarde como UTC
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc)); // Leer como UTC
+
+                entity.Property(e => e.EstimatedDeliveryTime)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.ToUniversalTime(), // Asegurar que se guarde como UTC
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc)); // Leer como UTC
+
+                // Relación con User (Customer)
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.CustomerOrders)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Relación con User (DeliveryPerson)
+                entity.HasOne(e => e.DeliveryPerson)
+                    .WithMany(u => u.DeliveryOrders)
+                    .HasForeignKey(e => e.DeliveryPersonId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Relación con Restaurant
+                entity.HasOne(e => e.Restaurant)
+                    .WithMany(r => r.Orders)
+                    .HasForeignKey(e => e.RestaurantId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Relación con Address
+                entity.HasOne(e => e.DeliveryAddress)
+                    .WithMany()
+                    .HasForeignKey(e => e.DeliveryAddressId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // ✅ ARREGLO: Nueva relación con Payment (1:1)
+                entity.HasOne(e => e.Payment)
+                    .WithOne(p => p.Order)
+                    .HasForeignKey<Order>(e => e.PaymentId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Índices
+                entity.HasIndex(e => e.UserId)
+                    .HasDatabaseName("IX_Order_UserId");
+
+                entity.HasIndex(e => e.RestaurantId)
+                    .HasDatabaseName("IX_Order_RestaurantId");
+
+                entity.HasIndex(e => e.Status)
+                    .HasDatabaseName("IX_Order_Status");
+
+                entity.HasIndex(e => e.CreatedAt)
+                    .HasDatabaseName("IX_Order_CreatedAt");
+
+                // ✅ ARREGLO: Índice único para PaymentId
+                entity.HasIndex(e => e.PaymentId)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Order_PaymentId");
+            });
+
+            // ===== CONFIGURACIÓN DE PAYMENT =====
+            modelBuilder.Entity<Payment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.PaymentMethod)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Status)
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Pending");
+
+                entity.Property(e => e.Amount)
+                    .HasColumnType("decimal(10,2)")
+                    .IsRequired();
+
+                entity.Property(e => e.TransactionId)
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.PaymentReference)
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.FailureReason)
+                    .HasMaxLength(500);
+
+                // ✅ ARREGLO: Fechas en Payment también con conversión UTC
+                entity.Property(e => e.PaymentDate)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.ToUniversalTime(),
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+                entity.Property(e => e.CreatedAt)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.ToUniversalTime(),
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+                entity.Property(e => e.UpdatedAt)
+                    .IsRequired()
+                    .HasConversion(
+                        v => v.ToUniversalTime(),
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+                // ✅ ELIMINADA: Relación antigua con Order via OrderId
+                // La relación ahora es Order.PaymentId → Payment.Id
+
+                // Índices
+                entity.HasIndex(e => e.Status)
+                    .HasDatabaseName("IX_Payment_Status");
+
+                entity.HasIndex(e => e.TransactionId)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Payment_TransactionId");
+
+                entity.HasIndex(e => e.PaymentDate)
+                    .HasDatabaseName("IX_Payment_PaymentDate");
+            });
 
             // Configure Address relationships
             modelBuilder.Entity<Address>()
@@ -113,7 +251,7 @@ namespace UberEatsBackend.Data
 
                 entity.Property(e => e.Type)
                     .IsRequired()
-                    .HasConversion<string>(); // Almacenar enum como string
+                    .HasConversion<string>();
 
                 entity.Property(e => e.LastFourDigits)
                     .HasMaxLength(4);

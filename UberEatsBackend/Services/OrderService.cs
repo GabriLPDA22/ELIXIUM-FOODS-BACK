@@ -17,12 +17,15 @@ namespace UberEatsBackend.Services
     private readonly IRepository<Product> _productRepository;
     private readonly IRepository<Address> _addressRepository;
     private readonly IRepository<Restaurant> _restaurantRepository;
-    private readonly IRepository<Payment> _paymentRepository;
-    private readonly ApplicationDbContext _context;
+    private readonly ApplicationDbContext _context; // ✅ CAMBIO: Usar contexto directo para Payment
     private readonly IMapper _mapper;
 
-    // Servicio opcional de ofertas - si no está registrado, no se usa
+    // Servicio opcional de ofertas
     private readonly IProductOfferService? _productOfferService;
+
+    // Servicio para validar métodos de pago
+    private readonly IPaymentMethodService? _paymentMethodService;
+
     private readonly ILogger<OrderService> _logger;
 
     public OrderService(
@@ -30,21 +33,21 @@ namespace UberEatsBackend.Services
         IRepository<Product> productRepository,
         IRepository<Address> addressRepository,
         IRepository<Restaurant> restaurantRepository,
-        IRepository<Payment> paymentRepository,
-        ApplicationDbContext context,
+        ApplicationDbContext context, // ✅ CAMBIO: Contexto directo
         IMapper mapper,
         ILogger<OrderService> logger,
-        IProductOfferService? productOfferService = null) // Parámetro opcional
+        IProductOfferService? productOfferService = null,
+        IPaymentMethodService? paymentMethodService = null)
     {
       _orderRepository = orderRepository;
       _productRepository = productRepository;
       _addressRepository = addressRepository;
       _restaurantRepository = restaurantRepository;
-      _paymentRepository = paymentRepository;
-      _context = context;
+      _context = context; // ✅ CAMBIO: Asignar contexto
       _mapper = mapper;
       _logger = logger;
-      _productOfferService = productOfferService; // Puede ser null
+      _productOfferService = productOfferService;
+      _paymentMethodService = paymentMethodService;
     }
 
     public async Task<List<OrderDto>> GetAllOrdersAsync()
@@ -79,36 +82,61 @@ namespace UberEatsBackend.Services
 
     public async Task<OrderDto> CreateOrderAsync(int userId, CreateOrderDto createOrderDto)
     {
-      // 1. Validar que existe la dirección de entrega
+      // 1. Validar dirección de entrega
       var deliveryAddress = await _addressRepository.GetByIdAsync(createOrderDto.DeliveryAddressId);
       if (deliveryAddress == null)
       {
         throw new KeyNotFoundException($"No se encontró la dirección con ID {createOrderDto.DeliveryAddressId}");
       }
 
-      // Verificar que la dirección pertenece al usuario
       if (deliveryAddress.UserId != userId)
       {
         throw new UnauthorizedAccessException("La dirección de entrega no pertenece al usuario");
       }
 
-      // 2. Validar que existe el restaurante
+      // 2. ✅ ARREGLO: Validar PaymentMethod para crear Payment
+      PaymentMethod? paymentMethod = null;
+
+      if (_paymentMethodService != null)
+      {
+        var paymentMethodEntity = await _paymentMethodService.GetPaymentMethodEntityAsync(createOrderDto.PaymentMethodId, userId);
+        if (paymentMethodEntity == null)
+        {
+          throw new KeyNotFoundException($"Método de pago con ID {createOrderDto.PaymentMethodId} no encontrado o no pertenece al usuario");
+        }
+        paymentMethod = paymentMethodEntity;
+      }
+      else
+      {
+        paymentMethod = await _context.PaymentMethods
+            .FirstOrDefaultAsync(pm => pm.Id == createOrderDto.PaymentMethodId &&
+                                      pm.UserId == userId &&
+                                      pm.IsActive);
+
+        if (paymentMethod == null)
+        {
+          throw new KeyNotFoundException($"Método de pago con ID {createOrderDto.PaymentMethodId} no encontrado o no pertenece al usuario");
+        }
+      }
+
+      _logger.LogInformation("✅ Método de pago validado: {PaymentMethodId} - {Type}",
+        paymentMethod.Id, paymentMethod.Type);
+
+      // 3. Validar restaurante
       var restaurant = await _restaurantRepository.GetByIdAsync(createOrderDto.RestaurantId);
       if (restaurant == null)
       {
         throw new KeyNotFoundException($"No se encontró el restaurante con ID {createOrderDto.RestaurantId}");
       }
 
-      // Verificar que el restaurante está abierto
       if (!restaurant.IsOpen)
       {
         throw new InvalidOperationException("El restaurante está cerrado");
       }
 
-      // 3. Obtener productos - MEJORADO: Priorizar RestaurantProduct si existe
+      // 4. Obtener productos - MEJORADO: Priorizar RestaurantProduct si existe
       var productIds = createOrderDto.Items.Select(i => i.ProductId).ToList();
 
-      // Intentar obtener productos específicos del restaurante primero
       var restaurantProducts = await _context.RestaurantProducts
           .Include(rp => rp.Product)
           .Where(rp => rp.RestaurantId == createOrderDto.RestaurantId &&
@@ -116,7 +144,6 @@ namespace UberEatsBackend.Services
                       rp.IsAvailable)
           .ToListAsync();
 
-      // Para productos que no están en RestaurantProduct, usar el producto base
       var foundProductIds = restaurantProducts.Select(rp => rp.ProductId).ToList();
       var missingProductIds = productIds.Where(pid => !foundProductIds.Contains(pid)).ToList();
 
@@ -124,13 +151,12 @@ namespace UberEatsBackend.Services
           .Where(p => missingProductIds.Contains(p.Id))
           .ToListAsync();
 
-      // Verificar que todos los productos existen
       if (restaurantProducts.Count + baseProducts.Count != productIds.Count)
       {
         throw new KeyNotFoundException("Uno o más productos no fueron encontrados");
       }
 
-      // 4. Calcular precios iniciales y crear estructura de datos
+      // 5. Calcular precios iniciales
       var orderItemsData = new List<(CreateOrderItemDto item, decimal unitPrice, decimal subtotal)>();
       decimal initialSubtotal = 0;
 
@@ -138,7 +164,6 @@ namespace UberEatsBackend.Services
       {
         decimal unitPrice;
 
-        // Buscar en RestaurantProduct primero
         var restaurantProduct = restaurantProducts.FirstOrDefault(rp => rp.ProductId == item.ProductId);
         if (restaurantProduct != null && restaurantProduct.Price.HasValue)
         {
@@ -146,7 +171,6 @@ namespace UberEatsBackend.Services
         }
         else
         {
-          // Usar precio base del producto
           var baseProduct = baseProducts.FirstOrDefault(p => p.Id == item.ProductId);
           if (baseProduct == null)
           {
@@ -163,11 +187,10 @@ namespace UberEatsBackend.Services
           item.ProductId, unitPrice, item.Quantity, itemSubtotal);
       }
 
-      // 5. NUEVO: Aplicar ofertas si el servicio está disponible
+      // 6. Aplicar ofertas si disponible
       var appliedOfferIds = new List<int>();
       var finalOrderItemsData = new List<(CreateOrderItemDto item, decimal finalUnitPrice, decimal finalSubtotal)>();
 
-      // DESACTIVAR OFERTAS TEMPORALMENTE - Cambia esta línea a "false" para deshabilitar ofertas
       bool enableOffers = true;
 
       if (_productOfferService != null && enableOffers)
@@ -176,40 +199,25 @@ namespace UberEatsBackend.Services
         {
           _logger.LogInformation("Aplicando ofertas automáticas para restaurante {RestaurantId}", createOrderDto.RestaurantId);
 
-          // Preparar datos para el cálculo de ofertas
           var productsForOffers = orderItemsData.Select(x =>
               (x.item.ProductId, x.item.Quantity, x.unitPrice)).ToList();
 
-          // Calcular ofertas aplicables
           var offerCalculations = await _productOfferService.CalculateOffersForProducts(
               createOrderDto.RestaurantId, productsForOffers, initialSubtotal);
 
           _logger.LogInformation("Ofertas encontradas: {OffersCount}", offerCalculations.Count);
 
-          // Aplicar ofertas y recalcular precios
           foreach (var itemData in orderItemsData)
           {
-            // Buscar ofertas aplicables para este producto
             var productOffers = offerCalculations
                 .Where(oc => oc.Applied &&
                            productsForOffers.Any(p => p.Item1 == itemData.item.ProductId))
                 .ToList();
 
-            _logger.LogInformation("Producto {ProductId}: {OffersCount} ofertas aplicables",
-              itemData.item.ProductId, productOffers.Count);
-
-            // Aplicar la mejor oferta (mayor descuento)
             var bestOffer = productOffers.OrderByDescending(o => o.CalculatedDiscount).FirstOrDefault();
-
-            if (bestOffer != null)
-            {
-              _logger.LogInformation("Mejor oferta para producto {ProductId}: OriginalPrice={Original}, FinalPrice={Final}, Discount={Discount}, DiscountType={DiscountType}",
-                itemData.item.ProductId, bestOffer.OriginalPrice, bestOffer.FinalPrice, bestOffer.CalculatedDiscount, bestOffer.DiscountType);
-            }
 
             var finalUnitPrice = bestOffer?.FinalPrice ?? itemData.unitPrice;
 
-            // VALIDACIÓN: El precio final nunca puede ser menor a $0.01
             if (finalUnitPrice < 0.01m)
             {
               _logger.LogWarning("Precio final muy bajo ({FinalPrice}) para producto {ProductId}. Ajustando a $0.01",
@@ -219,12 +227,8 @@ namespace UberEatsBackend.Services
 
             var finalItemSubtotal = finalUnitPrice * itemData.item.Quantity;
 
-            _logger.LogInformation("Precio final producto {ProductId}: Original={Original}, Final={Final}, Subtotal={Subtotal}",
-              itemData.item.ProductId, itemData.unitPrice, finalUnitPrice, finalItemSubtotal);
-
             finalOrderItemsData.Add((itemData.item, finalUnitPrice, finalItemSubtotal));
 
-            // Registrar ofertas aplicadas
             if (bestOffer != null)
             {
               appliedOfferIds.Add(bestOffer.OfferId);
@@ -244,7 +248,6 @@ namespace UberEatsBackend.Services
         catch (Exception ex)
         {
           _logger.LogWarning(ex, "Error aplicando ofertas, continuando con precios normales");
-          // Si hay error, usar precios normales
           appliedOfferIds.Clear();
           finalOrderItemsData = orderItemsData.Select(x => (x.item, x.unitPrice, x.subtotal)).ToList();
         }
@@ -252,17 +255,12 @@ namespace UberEatsBackend.Services
       else
       {
         _logger.LogDebug("Servicio de ofertas no disponible, usando precios normales");
-        // Sin ofertas, usar precios normales
         finalOrderItemsData = orderItemsData.Select(x => (x.item, x.unitPrice, x.subtotal)).ToList();
       }
 
-      // Calcular subtotal final basado en los items finales
       decimal finalSubtotal = finalOrderItemsData.Sum(x => x.finalSubtotal);
 
-      _logger.LogInformation("Subtotal inicial: {InitialSubtotal}, Subtotal final: {FinalSubtotal}",
-        initialSubtotal, finalSubtotal);
-
-      // 6. Crear los ítems del pedido con precios finales
+      // 7. Crear OrderItems
       var orderItems = new List<OrderItem>();
 
       foreach (var itemData in finalOrderItemsData)
@@ -271,43 +269,61 @@ namespace UberEatsBackend.Services
         {
           ProductId = itemData.item.ProductId,
           Quantity = itemData.item.Quantity,
-          UnitPrice = itemData.finalUnitPrice,  // Precio final (con descuento aplicado)
-          Subtotal = itemData.finalSubtotal     // Subtotal final (con descuento aplicado)
+          UnitPrice = itemData.finalUnitPrice,
+          Subtotal = itemData.finalSubtotal
         };
-
-        _logger.LogInformation("OrderItem final - Producto {ProductId}: Precio={Price}, Cantidad={Quantity}, Subtotal={Subtotal}",
-          itemData.item.ProductId, itemData.finalUnitPrice, itemData.item.Quantity, itemData.finalSubtotal);
 
         orderItems.Add(orderItem);
       }
 
-      // 7. Calcular total final (usando subtotal con descuentos) - SIN TAX
+      // 8. Calcular total final
       decimal deliveryFee = restaurant.DeliveryFee;
-      decimal total = finalSubtotal + deliveryFee; // SOLO SUBTOTAL + DELIVERY FEE
+      decimal total = finalSubtotal + deliveryFee;
 
       _logger.LogInformation("Resumen pedido - Subtotal inicial: {InitialSubtotal}, Subtotal final: {FinalSubtotal}, DeliveryFee: {DeliveryFee}, Total: {Total}",
         initialSubtotal, finalSubtotal, deliveryFee, total);
 
-      // 8. Crear el pedido
+      // 9. ✅ ARREGLO: Crear Payment PRIMERO
+      var paymentDescription = GetPaymentMethodDescription(paymentMethod);
+
+      var payment = new Payment
+      {
+        PaymentMethod = paymentDescription,
+        Status = "Completed",
+        TransactionId = Guid.NewGuid().ToString(),
+        Amount = total,
+        PaymentDate = DateTime.UtcNow,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+      };
+
+      // Guardar Payment en la base de datos
+      _context.Payments.Add(payment);
+      await _context.SaveChangesAsync(); // ✅ IMPORTANTE: Guardar para obtener Payment.Id
+
+      _logger.LogInformation("✅ Payment creado con ID: {PaymentId} - Método: {PaymentMethod} - Monto: ${Amount}",
+        payment.Id, paymentDescription, total);
+
+      // 10. ✅ ARREGLO: Crear Order con PaymentId
       var order = new Order
       {
         UserId = userId,
         RestaurantId = createOrderDto.RestaurantId,
         DeliveryAddressId = createOrderDto.DeliveryAddressId,
-        Subtotal = finalSubtotal, // Usar subtotal con descuentos
+        PaymentId = payment.Id, // ✅ ASIGNAR PaymentId
+        Subtotal = finalSubtotal,
         DeliveryFee = deliveryFee,
-        Total = total, // TOTAL SIN TAX
+        Total = total,
         Status = "Pending",
-        // Estimar tiempo de entrega (30 minutos + tiempo estimado del restaurante)
         EstimatedDeliveryTime = DateTime.UtcNow.AddMinutes(30 + restaurant.EstimatedDeliveryTime),
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow
       };
 
-      // 9. Guardar el pedido y sus items en la base de datos
+      // 11. Guardar Order y OrderItems
       var savedOrder = await _orderRepository.CreateOrderAsync(order, orderItems);
 
-      // 10. NUEVO: Incrementar contadores de ofertas aplicadas
+      // 12. Incrementar contadores de ofertas
       if (_productOfferService != null && appliedOfferIds.Any())
       {
         foreach (var offerId in appliedOfferIds.Distinct())
@@ -324,42 +340,26 @@ namespace UberEatsBackend.Services
         }
       }
 
-      // 11. Crear el registro de pago asociado al pedido
-      var payment = new Payment
-      {
-        OrderId = savedOrder.Id,
-        PaymentMethod = createOrderDto.PaymentMethod,
-        Status = "Completed", // En un caso real, esto dependería del procesamiento del pago
-        TransactionId = Guid.NewGuid().ToString(), // En un caso real, esto vendría del procesador de pagos
-        Amount = total,
-        PaymentDate = DateTime.UtcNow
-      };
-
-      await _paymentRepository.CreateAsync(payment);
-
-      // 12. Log de resumen del pedido
+      // 13. Log final
       var finalTotalSavings = initialSubtotal - finalSubtotal;
       _logger.LogInformation(
-          "Pedido {OrderId} creado - Subtotal original: ${Original}, Subtotal final: ${Final}, Ahorros: ${Savings}, Total: ${Total}",
-          savedOrder.Id, initialSubtotal, finalSubtotal, finalTotalSavings, total);
+          "✅ Pedido {OrderId} creado - PaymentId: {PaymentId} - Subtotal original: ${Original}, Subtotal final: ${Final}, Ahorros: ${Savings}, Total: ${Total}",
+          savedOrder.Id, payment.Id, initialSubtotal, finalSubtotal, finalTotalSavings, total);
 
-      // 13. Obtener la orden completa con todos sus detalles para el DTO
+      // 14. Obtener orden completa con Payment incluido
       var completeOrder = await _orderRepository.GetOrderWithDetailsAsync(savedOrder.Id);
       return _mapper.Map<OrderDto>(completeOrder);
     }
 
     public async Task<OrderDto?> UpdateOrderStatusAsync(int orderId, OrderStatusDto orderStatusDto, int? deliveryPersonId = null)
     {
-      // Validar el estado del pedido
       if (!IsValidOrderStatus(orderStatusDto.Status))
       {
         throw new ArgumentException($"Estado de pedido no válido: {orderStatusDto.Status}");
       }
 
-      // Actualizar el estado
       await _orderRepository.UpdateOrderStatusAsync(orderId, orderStatusDto.Status, deliveryPersonId);
 
-      // Obtener el pedido actualizado
       var updatedOrder = await _orderRepository.GetOrderWithDetailsAsync(orderId);
       return updatedOrder != null ? _mapper.Map<OrderDto>(updatedOrder) : null;
     }
@@ -374,6 +374,27 @@ namespace UberEatsBackend.Services
 
       await _orderRepository.DeleteAsync(order.Id);
       return true;
+    }
+
+    // ✅ MANTENER: Método helper para descripción del método de pago
+    private string GetPaymentMethodDescription(PaymentMethod paymentMethod)
+    {
+      var type = paymentMethod.Type.ToString().ToLower();
+
+      switch (type)
+      {
+        case "paypal":
+          return $"PayPal ({paymentMethod.PayPalEmail})";
+        case "visa":
+          return $"Visa •••• {paymentMethod.LastFourDigits}";
+        case "mastercard":
+          return $"Mastercard •••• {paymentMethod.LastFourDigits}";
+        default:
+          if (!string.IsNullOrEmpty(paymentMethod.LastFourDigits))
+            return $"{paymentMethod.Nickname} •••• {paymentMethod.LastFourDigits}";
+          else
+            return paymentMethod.Nickname;
+      }
     }
 
     private bool IsValidOrderStatus(string status)
