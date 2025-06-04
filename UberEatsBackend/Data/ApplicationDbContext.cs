@@ -28,6 +28,8 @@ namespace UberEatsBackend.Data
         public DbSet<OrderItemOffer> OrderItemOffers { get; set; } = null!;
         public DbSet<PaymentMethod> PaymentMethods { get; set; } = null!;
         public DbSet<RestaurantHour> RestaurantHours { get; set; } = null!;
+        public DbSet<Review> Reviews { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +43,7 @@ namespace UberEatsBackend.Data
             modelBuilder.ApplyConfiguration(new CategoryConfiguration());
             modelBuilder.ApplyConfiguration(new ProductConfiguration());
             modelBuilder.ApplyConfiguration(new RestaurantProductConfiguration());
+            modelBuilder.ApplyConfiguration(new ReviewConfiguration());
 
             // ===== CONFIGURACIÓN DE ORDER =====
             modelBuilder.Entity<Order>(entity =>

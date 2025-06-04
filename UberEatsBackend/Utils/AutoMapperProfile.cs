@@ -12,6 +12,7 @@ using UberEatsBackend.DTOs.Business;
 using UberEatsBackend.DTOs.Offers;
 using UberEatsBackend.DTOs.PaymentMethod;
 using UberEatsBackend.Models;
+using UberEatsBackend.DTOs.Review;
 using System;
 
 namespace UberEatsBackend.Utils
@@ -163,6 +164,45 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.Restaurant, opt => opt.MapFrom(src => src.Restaurant))
           .ForMember(dest => dest.DeliveryAddressDetails, opt => opt.MapFrom(src => src.DeliveryAddress))
           .ForMember(dest => dest.DeliveryPerson, opt => opt.MapFrom(src => src.DeliveryPerson));
+        // Review mappings
+CreateMap<Review, ReviewDto>()
+    .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => 
+        src.User != null ? $"{src.User.FirstName} {src.User.LastName}" : string.Empty))
+    .ForMember(dest => dest.UserAvatarUrl, opt => opt.MapFrom(src => 
+        src.User != null ? src.User.PhotoURL ?? string.Empty : string.Empty))
+    .ForMember(dest => dest.RestaurantName, opt => opt.MapFrom(src => 
+        src.Restaurant != null ? src.Restaurant.Name : string.Empty))
+    .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => 
+        src.Product != null ? src.Product.Name : null))
+    .ForMember(dest => dest.TimeAgo, opt => opt.Ignore()); // Se calculará en el servicio
+
+    CreateMap<CreateReviewDto, Review>()
+        .ForMember(dest => dest.Id, opt => opt.Ignore())
+        .ForMember(dest => dest.UserId, opt => opt.Ignore())
+        .ForMember(dest => dest.User, opt => opt.Ignore())
+        .ForMember(dest => dest.Restaurant, opt => opt.Ignore())
+        .ForMember(dest => dest.Product, opt => opt.Ignore())
+        .ForMember(dest => dest.IsVerifiedPurchase, opt => opt.Ignore())
+        .ForMember(dest => dest.IsHelpful, opt => opt.MapFrom(src => false))
+        .ForMember(dest => dest.HelpfulCount, opt => opt.MapFrom(src => 0))
+        .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
+        .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+        .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
+
+    CreateMap<UpdateReviewDto, Review>()
+        .ForMember(dest => dest.Id, opt => opt.Ignore())
+        .ForMember(dest => dest.UserId, opt => opt.Ignore())
+        .ForMember(dest => dest.RestaurantId, opt => opt.Ignore())
+        .ForMember(dest => dest.ProductId, opt => opt.Ignore())
+        .ForMember(dest => dest.User, opt => opt.Ignore())
+        .ForMember(dest => dest.Restaurant, opt => opt.Ignore())
+        .ForMember(dest => dest.Product, opt => opt.Ignore())
+        .ForMember(dest => dest.IsVerifiedPurchase, opt => opt.Ignore())
+        .ForMember(dest => dest.IsHelpful, opt => opt.Ignore())
+        .ForMember(dest => dest.HelpfulCount, opt => opt.Ignore())
+        .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+        .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+        .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
 
       // ✅ NUEVO: Mapeos para los DTOs específicos de Order
       CreateMap<User, OrderUserDto>();
