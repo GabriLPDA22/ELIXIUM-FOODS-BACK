@@ -43,7 +43,7 @@ spec:
     spec:
       containers:
         - name: ubereats-backend
-          image: franvilla/back4:latest
+          image: franvilla/back:latest
           ports:
             - containerPort: 8080
           env:
