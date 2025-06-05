@@ -56,10 +56,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 // Restaurant services
 builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
-
-// Order services
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IRestaurantHourService, RestaurantHourService>();
 
 // Product services
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
@@ -69,50 +66,61 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IRestaurantProductRepository, RestaurantProductRepository>();
 builder.Services.AddScoped<IRestaurantProductService, RestaurantProductService>();
 
+// Offer services
+builder.Services.AddScoped<IProductOfferRepository, ProductOfferRepository>();
+builder.Services.AddScoped<IProductOfferService, ProductOfferService>();
+
 // Business services
 builder.Services.AddScoped<IBusinessRepository, BusinessRepository>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
 
-// Promotion services
-builder.Services.AddScoped<IPromotionRepository, PromotionRepository>();
-
 // Generic repository
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+// ✅ ARREGLO: PaymentMethodService DEBE registrarse ANTES del OrderService
+builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
+
+// ✅ ARREGLO: Order services - ahora OrderService puede recibir IPaymentMethodService
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 
 // Configuración de AWS S3
 if (awsSettings != null && !string.IsNullOrEmpty(awsSettings.AccessKey))
 {
-    builder.Services.AddSingleton<IAmazonS3>(provider =>
+  builder.Services.AddSingleton<IAmazonS3>(provider =>
+  {
+    var config = new AmazonS3Config
     {
-        var config = new AmazonS3Config
-        {
-            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
-            Timeout = TimeSpan.FromMinutes(5),
-            MaxErrorRetry = 3,
-            UseHttp = false
-        };
+      RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+      Timeout = TimeSpan.FromMinutes(5),
+      MaxErrorRetry = 3,
+      UseHttp = false
+    };
 
-        return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+    return new AmazonS3Client(awsSettings.AccessKey, awsSettings.SecretKey, config);
+  });
+
+  // Configurar SES si está configurado
+  if (!string.IsNullOrEmpty(awsSettings.SES?.FromEmail))
+  {
+    builder.Services.AddSingleton<IAmazonSimpleEmailService>(provider =>
+    {
+      var config = new Amazon.SimpleEmail.AmazonSimpleEmailServiceConfig
+      {
+        RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
+        Timeout = TimeSpan.FromMinutes(2),
+        MaxErrorRetry = 3
+      };
+
+      return new Amazon.SimpleEmail.AmazonSimpleEmailServiceClient(
+              awsSettings.AccessKey,
+              awsSettings.SecretKey,
+              config);
     });
-
-    // Configurar SES si está configurado
-    if (!string.IsNullOrEmpty(awsSettings.SES?.FromEmail))
-    {
-        builder.Services.AddSingleton<IAmazonSimpleEmailService>(provider =>
-        {
-            var config = new Amazon.SimpleEmail.AmazonSimpleEmailServiceConfig
-            {
-                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(awsSettings.Region),
-                Timeout = TimeSpan.FromMinutes(2),
-                MaxErrorRetry = 3
-            };
-
-            return new Amazon.SimpleEmail.AmazonSimpleEmailServiceClient(
-                awsSettings.AccessKey,
-                awsSettings.SecretKey,
-                config);
-        });
-    }
+  }
 }
 
 // Configuración de Storage
@@ -154,30 +162,32 @@ if (!emailServiceConfigured)
 
 builder.Services.AddScoped<IImageService, ImageService>();
 
-// Configuración de Logging
+// Configuración de Logging (reducido para menos ruido)
 builder.Services.AddLogging(logging =>
 {
     logging.ClearProviders();
     logging.AddConsole();
-    
+
     if (builder.Environment.IsDevelopment())
     {
-        // En desarrollo, mostrar solo logs importantes
-        logging.SetMinimumLevel(LogLevel.Information);
-        logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
-        logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
-        logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.Warning);
+        // Solo logs importantes, sin tanto ruido
+        logging.SetMinimumLevel(LogLevel.Warning);
+        logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
+        logging.AddFilter("Microsoft.AspNetCore", LogLevel.Error);
+        logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.StaticFiles", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.DataProtection", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.Mvc.ModelBinding", LogLevel.Error);
         logging.AddFilter("Microsoft.AspNetCore.HostFiltering", LogLevel.Error);
-        logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Information);
+        logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Error);
+
+        // Solo permitir logs de la aplicación y errores críticos
+        logging.AddFilter("UberEatsBackend", LogLevel.Information);
     }
     else
     {
-        // En producción, mostrar solo logs críticos
-        logging.SetMinimumLevel(LogLevel.Warning);
-        logging.AddFilter("Microsoft", LogLevel.Warning);
+        logging.SetMinimumLevel(LogLevel.Error);
+        logging.AddFilter("Microsoft", LogLevel.Error);
     }
 });
 
@@ -186,10 +196,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowVueApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
@@ -298,7 +307,7 @@ if (!Directory.Exists(wwwrootPath))
     Directory.CreateDirectory(wwwrootPath);
 }
 
-// Inicialización de Base de Datos
+// Inicialización de Base de Datos con EF (aplicar migraciones automáticamente)
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
@@ -307,7 +316,12 @@ if (app.Environment.IsDevelopment())
         try
         {
             var context = services.GetRequiredService<ApplicationDbContext>();
-            context.Database.EnsureCreated();
+
+            // Aplicar migraciones pendientes automáticamente
+            if (context.Database.GetPendingMigrations().Any())
+            {
+                context.Database.Migrate();
+            }
         }
         catch (Exception ex)
         {
@@ -317,28 +331,31 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-// Verificación de servicios críticos
+// Verificación de servicios críticos (simplificada)
 using (var scope = app.Services.CreateScope())
 {
     try
     {
+        // Solo verificar servicios críticos sin tanto logging
+        scope.ServiceProvider.GetRequiredService<IPaymentMethodService>();
+        scope.ServiceProvider.GetRequiredService<IOrderService>(); // ✅ ARREGLO: Verificar que OrderService se puede crear
+
         var s3Client = scope.ServiceProvider.GetRequiredService<IAmazonS3>();
-        await s3Client.ListBucketsAsync();
-
         var sesClient = scope.ServiceProvider.GetService<IAmazonSimpleEmailService>();
-        if (sesClient != null)
-        {
-            await sesClient.GetSendQuotaAsync();
-        }
-
         scope.ServiceProvider.GetRequiredService<IImageService>();
         scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+        // Test básico de S3 solo si es crítico
+        if (s3Client != null)
+        {
+            _ = Task.Run(async () => await s3Client.ListBucketsAsync());
+        }
     }
     catch (Exception ex)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Error verificando servicios críticos");
-        
+
         if (ex.Message.Contains("S3") || ex.Message.Contains("Bucket"))
         {
             throw;
@@ -370,4 +387,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+Console.WriteLine("🚀 Servidor iniciado correctamente");
 app.Run();

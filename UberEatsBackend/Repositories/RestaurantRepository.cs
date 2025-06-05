@@ -17,7 +17,7 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Business) // FIXED: Incluir Business en lugar de Menus
+          .Include(r => r.Business)
           .FirstOrDefaultAsync(r => r.Id == id);
     }
 
@@ -25,30 +25,32 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Business) // FIXED: Incluir Business
+          .Include(r => r.Business)
           .OrderByDescending(r => r.AverageRating)
           .Take(limit)
           .ToListAsync();
     }
 
-    public async Task<List<Restaurant>> SearchRestaurantsAsync(string? query, string? cuisine)
+    public async Task<List<Restaurant>> SearchRestaurantsAsync(string query, int? categoryId)
     {
       var queryable = _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Business) // FIXED: Incluir Business
+          .Include(r => r.Business)
           .AsQueryable();
 
-      if (!string.IsNullOrEmpty(query))
+      if (!string.IsNullOrWhiteSpace(query))
       {
+        string lowerQuery = query.ToLower();
         queryable = queryable.Where(r =>
-            r.Name.Contains(query) ||
-            r.Description.Contains(query));
+            (r.Name != null && r.Name.ToLower().Contains(lowerQuery)) ||
+            (r.Description != null && r.Description.ToLower().Contains(lowerQuery)));
       }
 
-      if (!string.IsNullOrEmpty(cuisine))
+      if (categoryId.HasValue)
       {
-        queryable = queryable.Where(r =>
-            r.Description.Contains(cuisine)); // Simplificado - podrías agregar un campo de cocina
+        // Assuming categoryId corresponds to the 'Tipo' field.
+        // Adjust if it maps to a different concept or a related table.
+        queryable = queryable.Where(r => r.Tipo == categoryId.Value);
       }
 
       return await queryable.OrderBy(r => r.Name).ToListAsync();
@@ -58,18 +60,17 @@ namespace UberEatsBackend.Repositories
     {
       return await _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Business) // FIXED: Incluir Business
+          .Include(r => r.Business)
           .Where(r => r.Tipo == tipo)
           .OrderBy(r => r.Name)
           .ToListAsync();
     }
 
-    // Método para obtener restaurantes por business ID
     public async Task<List<Restaurant>> GetByBusinessIdAsync(int businessId)
     {
       return await _context.Restaurants
           .Include(r => r.Address)
-          .Include(r => r.Business) // FIXED: Incluir Business
+          .Include(r => r.Business)
           .Where(r => r.BusinessId == businessId)
           .OrderBy(r => r.Name)
           .ToListAsync();

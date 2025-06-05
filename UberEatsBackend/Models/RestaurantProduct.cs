@@ -1,3 +1,4 @@
+// UberEatsBackend/Models/RestaurantProduct.cs
 using System;
 
 namespace UberEatsBackend.Models
@@ -14,10 +15,10 @@ namespace UberEatsBackend.Models
     public Product Product { get; set; } = null!;
 
     // Campos específicos por restaurante
-    public decimal Price { get; set; } // Precio específico en este restaurante
-    public bool IsAvailable { get; set; } = true; // Disponibilidad en este restaurante
-    public int StockQuantity { get; set; } = 0; // Stock opcional
-    public string? Notes { get; set; } // Notas específicas del restaurante
+    public decimal? Price { get; set; }   // Ahora decimal? (anulable)
+    public bool IsAvailable { get; set; } = true;
+    public int StockQuantity { get; set; } = 0;
+    public string? Notes { get; set; }
 
     private DateTime _createdAt;
     private DateTime _updatedAt;

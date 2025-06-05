@@ -13,5 +13,6 @@ namespace UberEatsBackend.Services
     Task<bool> RemoveProductFromRestaurantAsync(int restaurantId, int productId);
     Task<List<RestaurantProductDto>> BulkAssignProductsAsync(int restaurantId, List<CreateRestaurantProductDto> products);
     Task<List<RestaurantProductDto>> GetProductsByBusinessAsync(int businessId);
+    Task<List<RestaurantProductOfferingDto>> GetRestaurantOfferingsForProductAsync(int productId);
   }
 }

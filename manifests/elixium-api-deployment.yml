@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ubereats-api-svc
+  labels:
+    app: ubereats-api
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:542910905096:certificate/5a1349ab-ace9-4b5d-a217-1429d26271eb
+    # Solo habilitará SSL/TLS en el puerto que se llame "https"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+spec:
+  selector:
+    app: ubereats-api
+    tier: backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+    - name: https
+      port: 443
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubereats-api-deploy
+  labels:
+    app: ubereats-api
+spec:
+  selector:
+    matchLabels:
+      app: ubereats-api
+      tier: backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ubereats-api
+        tier: backend
+    spec:
+      containers:
+        - name: ubereats-backend
+          image: franvilla/back:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: TZ
+              value: "Europe/Madrid"

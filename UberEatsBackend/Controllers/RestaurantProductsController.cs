@@ -1,3 +1,4 @@
+// UberEatsBackend/Controllers/RestaurantProductsController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using UberEatsBackend.Data;
 using UberEatsBackend.DTOs.RestaurantProduct;
+using UberEatsBackend.DTOs.Offers; // ← AGREGAR IMPORT
 using UberEatsBackend.Services;
 
 namespace UberEatsBackend.Controllers
@@ -18,15 +20,18 @@ namespace UberEatsBackend.Controllers
     private readonly IRestaurantProductService _restaurantProductService;
     private readonly IBusinessService _businessService;
     private readonly ApplicationDbContext _context;
+    private readonly IProductOfferService _productOfferService; // ← AGREGAR DEPENDENCIA
 
     public RestaurantProductsController(
         IRestaurantProductService restaurantProductService,
         IBusinessService businessService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IProductOfferService productOfferService) // ← AGREGAR PARÁMETRO
     {
       _restaurantProductService = restaurantProductService;
       _businessService = businessService;
       _context = context;
+      _productOfferService = productOfferService; // ← ASIGNAR DEPENDENCIA
     }
 
     // GET: api/restaurants/5/products
@@ -65,6 +70,62 @@ namespace UberEatsBackend.Controllers
       catch (Exception ex)
       {
         return StatusCode(500, $"Internal server error: {ex.Message}");
+      }
+    }
+
+    // ✅ NUEVO ENDPOINT: GET: api/restaurants/5/products/10/active-offer
+    [HttpGet("{productId}/active-offer")]
+    [AllowAnonymous]
+    public async Task<ActionResult> GetActiveOfferForProduct(int restaurantId, int productId)
+    {
+      try
+      {
+        var offer = await _productOfferService.GetActiveOfferForProductInRestaurantAsync(restaurantId, productId);
+
+        if (offer == null)
+        {
+          // ✅ CAMBIO: Retornar 200 con hasOffer: false en lugar de 404
+          return Ok(new
+          {
+            hasOffer = false,
+            isActive = false,
+            message = "No active offer found for this product in this restaurant",
+            restaurantId = restaurantId,
+            productId = productId
+          });
+        }
+
+        // ✅ CAMBIO: Estructura de respuesta coherente
+        return Ok(new
+        {
+          hasOffer = true,
+          isActive = offer.IsActive,
+          offerId = offer.OfferId,
+          name = offer.Name,
+          description = offer.Description,
+          discountType = offer.DiscountType,
+          discountValue = offer.DiscountValue,
+          minimumOrderAmount = offer.MinimumOrderAmount,
+          minimumQuantity = offer.MinimumQuantity,
+          startDate = offer.StartDate,
+          endDate = offer.EndDate,
+          remainingUses = offer.RemainingUses
+        });
+      }
+      catch (Exception ex)
+      {
+        // ✅ CAMBIO: Log del error pero retornar 200 con hasOffer: false
+        Console.WriteLine($"Error fetching offer for product {productId} in restaurant {restaurantId}: {ex.Message}");
+
+        return Ok(new
+        {
+          hasOffer = false,
+          isActive = false,
+          message = "Error fetching offer information",
+          restaurantId = restaurantId,
+          productId = productId,
+          error = ex.Message
+        });
       }
     }
 

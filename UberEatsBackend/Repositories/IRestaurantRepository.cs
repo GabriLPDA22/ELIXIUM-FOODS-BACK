@@ -8,7 +8,7 @@ namespace UberEatsBackend.Repositories
   {
     Task<Restaurant?> GetWithDetailsAsync(int id);
     Task<List<Restaurant>> GetPopularRestaurantsAsync(int limit = 10);
-    Task<List<Restaurant>> SearchRestaurantsAsync(string? query, string? cuisine);
+    Task<List<Restaurant>> SearchRestaurantsAsync(string query, int? categoryId);
     Task<List<Restaurant>> GetByTipoAsync(int tipo);
     Task<List<Restaurant>> GetByBusinessIdAsync(int businessId);
   }

@@ -17,7 +17,7 @@ namespace UberEatsBackend.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -232,6 +232,9 @@ namespace UberEatsBackend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("AddressId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
@@ -239,7 +242,7 @@ namespace UberEatsBackend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("DeliveryFee")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<int?>("DeliveryPersonId")
                         .HasColumnType("integer");
@@ -247,21 +250,27 @@ namespace UberEatsBackend.Migrations
                     b.Property<DateTime>("EstimatedDeliveryTime")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<int?>("PaymentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PaymentMethodId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("RestaurantId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Pending");
 
                     b.Property<decimal>("Subtotal")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("Tax")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<decimal>("Total")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -271,13 +280,29 @@ namespace UberEatsBackend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AddressId");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_Order_CreatedAt");
+
                     b.HasIndex("DeliveryAddressId");
 
                     b.HasIndex("DeliveryPersonId");
 
-                    b.HasIndex("RestaurantId");
+                    b.HasIndex("PaymentId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Order_PaymentId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("PaymentMethodId");
+
+                    b.HasIndex("RestaurantId")
+                        .HasDatabaseName("IX_Order_RestaurantId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Order_Status");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_Order_UserId");
 
                     b.ToTable("Orders");
                 });
@@ -314,6 +339,61 @@ namespace UberEatsBackend.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("UberEatsBackend.Models.OrderItemOffer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AppliedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp without time zone")
+                        .HasDefaultValueSql("NOW()");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("FinalPrice")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("OfferId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OfferName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("OrderItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("OriginalPrice")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppliedAt")
+                        .HasDatabaseName("IX_OrderItemOffer_AppliedAt");
+
+                    b.HasIndex("OfferId")
+                        .HasDatabaseName("IX_OrderItemOffer_OfferId");
+
+                    b.HasIndex("OrderItemId")
+                        .HasDatabaseName("IX_OrderItemOffer_OrderItemId");
+
+                    b.ToTable("OrderItemOffers");
+                });
+
             modelBuilder.Entity("UberEatsBackend.Models.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -323,32 +403,126 @@ namespace UberEatsBackend.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(10,2)");
 
-                    b.Property<int>("OrderId")
-                        .HasColumnType("integer");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Pending");
 
                     b.Property<string>("TransactionId")
-                        .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderId")
-                        .IsUnique();
+                    b.HasIndex("PaymentDate")
+                        .HasDatabaseName("IX_Payment_PaymentDate");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Payment_Status");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Payment_TransactionId");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("UberEatsBackend.Models.PaymentMethod", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CardholderName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("ExpiryMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ExpiryYear")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("LastFourDigits")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PayPalEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("PaymentToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("IX_PaymentMethod_Type");
+
+                    b.HasIndex("UserId", "IsActive")
+                        .HasDatabaseName("IX_PaymentMethod_User_Active");
+
+                    b.HasIndex("UserId", "IsDefault")
+                        .HasDatabaseName("IX_PaymentMethod_User_Default");
+
+                    b.ToTable("PaymentMethods");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Product", b =>
@@ -393,7 +567,7 @@ namespace UberEatsBackend.Migrations
                     b.ToTable("Products");
                 });
 
-            modelBuilder.Entity("UberEatsBackend.Models.Promotion", b =>
+            modelBuilder.Entity("UberEatsBackend.Models.ProductOffer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -401,56 +575,93 @@ namespace UberEatsBackend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BusinessId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("DiscountType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("percentage");
 
                     b.Property<decimal>("DiscountValue")
-                        .HasColumnType("numeric");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp without time zone");
 
-                    b.Property<decimal>("MinimumOrderValue")
-                        .HasColumnType("numeric");
+                    b.Property<decimal>("MinimumOrderAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(10,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<int>("MinimumQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RestaurantId")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("active");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("UsageCount")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("UsageLimit")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BusinessId");
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("IX_ProductOffer_ProductId");
 
-                    b.ToTable("Promotions");
+                    b.HasIndex("RestaurantId")
+                        .HasDatabaseName("IX_ProductOffer_RestaurantId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_ProductOffer_Status");
+
+                    b.HasIndex("RestaurantId", "ProductId")
+                        .HasDatabaseName("IX_ProductOffer_Restaurant_Product");
+
+                    b.HasIndex("StartDate", "EndDate")
+                        .HasDatabaseName("IX_ProductOffer_DateRange");
+
+                    b.HasIndex("Status", "StartDate", "EndDate", "RestaurantId")
+                        .HasDatabaseName("IX_ProductOffer_ActiveOffers")
+                        .HasFilter("\"Status\" = 'active'");
+
+                    b.ToTable("ProductOffers");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Restaurant", b =>
@@ -523,6 +734,48 @@ namespace UberEatsBackend.Migrations
                     b.ToTable("Restaurants");
                 });
 
+            modelBuilder.Entity("UberEatsBackend.Models.RestaurantHour", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<TimeSpan>("CloseTime")
+                        .HasColumnType("interval");
+
+                    b.Property<string>("DayOfWeek")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsOpen")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<TimeSpan>("OpenTime")
+                        .HasColumnType("interval");
+
+                    b.Property<int>("RestaurantId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DayOfWeek")
+                        .HasDatabaseName("IX_RestaurantHour_DayOfWeek");
+
+                    b.HasIndex("RestaurantId")
+                        .HasDatabaseName("IX_RestaurantHour_RestaurantId");
+
+                    b.HasIndex("RestaurantId", "DayOfWeek")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RestaurantHour_Restaurant_Day");
+
+                    b.ToTable("RestaurantHours");
+                });
+
             modelBuilder.Entity("UberEatsBackend.Models.RestaurantProduct", b =>
                 {
                     b.Property<int>("Id")
@@ -570,6 +823,107 @@ namespace UberEatsBackend.Migrations
                         .HasDatabaseName("IX_RestaurantProduct_Restaurant_Product");
 
                     b.ToTable("RestaurantProducts");
+                });
+
+            modelBuilder.Entity("UberEatsBackend.Models.Review", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("HelpfulCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsHelpful")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsVerifiedPurchase")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasAnnotation("Range", new[] { 1, 5 });
+
+                    b.Property<int>("RestaurantId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_Review_CreatedAt");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_Review_IsActive");
+
+                    b.HasIndex("ProductId")
+                        .HasDatabaseName("IX_Review_ProductId");
+
+                    b.HasIndex("Rating")
+                        .HasDatabaseName("IX_Review_Rating");
+
+                    b.HasIndex("RestaurantId")
+                        .HasDatabaseName("IX_Review_RestaurantId");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_Review_UserId");
+
+                    b.HasIndex("IsVerifiedPurchase", "IsActive")
+                        .HasDatabaseName("IX_Review_Verified_Active");
+
+                    b.HasIndex("UserId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Review_User_Product")
+                        .HasFilter("\"ProductId\" IS NOT NULL AND \"IsActive\" = true");
+
+                    b.HasIndex("UserId", "RestaurantId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Review_User_Restaurant")
+                        .HasFilter("\"ProductId\" IS NULL AND \"IsActive\" = true");
+
+                    b.HasIndex("ProductId", "IsActive", "Rating")
+                        .HasDatabaseName("IX_Review_Product_Active_Rating");
+
+                    b.HasIndex("RestaurantId", "IsActive", "CreatedAt")
+                        .HasDatabaseName("IX_Review_Restaurant_Active_Date");
+
+                    b.HasIndex("RestaurantId", "IsActive", "Rating")
+                        .HasDatabaseName("IX_Review_Restaurant_Active_Rating");
+
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.User", b =>
@@ -700,16 +1054,29 @@ namespace UberEatsBackend.Migrations
 
             modelBuilder.Entity("UberEatsBackend.Models.Order", b =>
                 {
-                    b.HasOne("UberEatsBackend.Models.Address", "DeliveryAddress")
+                    b.HasOne("UberEatsBackend.Models.Address", null)
                         .WithMany("Orders")
+                        .HasForeignKey("AddressId");
+
+                    b.HasOne("UberEatsBackend.Models.Address", "DeliveryAddress")
+                        .WithMany()
                         .HasForeignKey("DeliveryAddressId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("UberEatsBackend.Models.User", "DeliveryPerson")
                         .WithMany("DeliveryOrders")
                         .HasForeignKey("DeliveryPersonId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("UberEatsBackend.Models.Payment", "Payment")
+                        .WithOne("Order")
+                        .HasForeignKey("UberEatsBackend.Models.Order", "PaymentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("UberEatsBackend.Models.PaymentMethod", null)
+                        .WithMany("Orders")
+                        .HasForeignKey("PaymentMethodId");
 
                     b.HasOne("UberEatsBackend.Models.Restaurant", "Restaurant")
                         .WithMany("Orders")
@@ -726,6 +1093,8 @@ namespace UberEatsBackend.Migrations
                     b.Navigation("DeliveryAddress");
 
                     b.Navigation("DeliveryPerson");
+
+                    b.Navigation("Payment");
 
                     b.Navigation("Restaurant");
 
@@ -751,15 +1120,26 @@ namespace UberEatsBackend.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("UberEatsBackend.Models.Payment", b =>
+            modelBuilder.Entity("UberEatsBackend.Models.OrderItemOffer", b =>
                 {
-                    b.HasOne("UberEatsBackend.Models.Order", "Order")
-                        .WithOne("Payment")
-                        .HasForeignKey("UberEatsBackend.Models.Payment", "OrderId")
+                    b.HasOne("UberEatsBackend.Models.OrderItem", "OrderItem")
+                        .WithMany()
+                        .HasForeignKey("OrderItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Order");
+                    b.Navigation("OrderItem");
+                });
+
+            modelBuilder.Entity("UberEatsBackend.Models.PaymentMethod", b =>
+                {
+                    b.HasOne("UberEatsBackend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Product", b =>
@@ -773,15 +1153,23 @@ namespace UberEatsBackend.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("UberEatsBackend.Models.Promotion", b =>
+            modelBuilder.Entity("UberEatsBackend.Models.ProductOffer", b =>
                 {
-                    b.HasOne("UberEatsBackend.Models.Business", "Business")
+                    b.HasOne("UberEatsBackend.Models.Product", "Product")
                         .WithMany()
-                        .HasForeignKey("BusinessId")
+                        .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Business");
+                    b.HasOne("UberEatsBackend.Models.Restaurant", "Restaurant")
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Restaurant");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Restaurant", b =>
@@ -802,6 +1190,17 @@ namespace UberEatsBackend.Migrations
                     b.Navigation("Business");
                 });
 
+            modelBuilder.Entity("UberEatsBackend.Models.RestaurantHour", b =>
+                {
+                    b.HasOne("UberEatsBackend.Models.Restaurant", "Restaurant")
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Restaurant");
+                });
+
             modelBuilder.Entity("UberEatsBackend.Models.RestaurantProduct", b =>
                 {
                     b.HasOne("UberEatsBackend.Models.Product", "Product")
@@ -819,6 +1218,32 @@ namespace UberEatsBackend.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Restaurant");
+                });
+
+            modelBuilder.Entity("UberEatsBackend.Models.Review", b =>
+                {
+                    b.HasOne("UberEatsBackend.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("UberEatsBackend.Models.Restaurant", "Restaurant")
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("UberEatsBackend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Restaurant");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Address", b =>
@@ -843,8 +1268,16 @@ namespace UberEatsBackend.Migrations
             modelBuilder.Entity("UberEatsBackend.Models.Order", b =>
                 {
                     b.Navigation("OrderItems");
+                });
 
-                    b.Navigation("Payment");
+            modelBuilder.Entity("UberEatsBackend.Models.Payment", b =>
+                {
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("UberEatsBackend.Models.PaymentMethod", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Product", b =>

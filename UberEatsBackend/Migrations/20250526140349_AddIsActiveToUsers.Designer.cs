@@ -452,8 +452,6 @@ namespace UberEatsBackend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BusinessId");
-
-                    b.ToTable("Promotions");
                 });
 
             modelBuilder.Entity("UberEatsBackend.Models.Restaurant", b =>

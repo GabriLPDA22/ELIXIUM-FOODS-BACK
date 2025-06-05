@@ -383,8 +383,8 @@ namespace UberEatsBackend.Controllers
         try
         {
           // ✅ INCLUIR EMAIL EN LA URL
-          var resetUrl = $"http://localhost:5173/reset-password?token={resetToken}&email={Uri.EscapeDataString(user.Email)}";
-          var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, resetToken, "http://localhost:5173/reset-password");
+          var resetUrl = $"https://elixiumfoods.com/reset-password?token={resetToken}&email={Uri.EscapeDataString(user.Email)}";
+          var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, resetToken, "https://elixiumfoods.com/reset-password");
 
           if (emailSent)
           {
@@ -403,7 +403,7 @@ namespace UberEatsBackend.Controllers
 
         // ✅ LOG PARA DEBUGGING CON EMAIL EN LA URL
         _logger.LogInformation("Password reset token generated for user {Email}: {Token}", user.Email, resetToken);
-        _logger.LogInformation("✅ Reset URL completa: http://localhost:5173/reset-password?token={Token}&email={Email}", resetToken, Uri.EscapeDataString(user.Email));
+        _logger.LogInformation("✅ Reset URL completa: https://elixiumfoods.com/reset-password?token={Token}&email={Email}", resetToken, Uri.EscapeDataString(user.Email));
 
         return Ok(new AuthResponseDto
         {
