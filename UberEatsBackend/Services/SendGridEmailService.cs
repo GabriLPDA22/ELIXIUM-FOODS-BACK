@@ -119,7 +119,7 @@ namespace UberEatsBackend.Services
                                 <p>¡Bienvenido a <strong>Elixium Foods</strong>! Estamos emocionados de tenerte como parte de nuestra comunidad.</p>
                                 <p>Ya puedes empezar a explorar nuestros deliciosos restaurantes y realizar tus primeros pedidos.</p>
                                 <div style='text-align: center;'>
-                                    <a href='{_appSettings.FrontendUrl ?? "http://localhost:5173"}' class='button'>Explorar Restaurantes</a>
+                                    <a href='{_appSettings.FrontendUrl ?? "https://elixiumfoods.com"}' class='button'>Explorar Restaurantes</a>
                                 </div>
                                 <p>¡Que disfrutes tu experiencia!</p>
                                 <p>Saludos,<br>El equipo de Elixium Foods</p>
