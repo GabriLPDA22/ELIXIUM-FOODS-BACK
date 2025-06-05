@@ -11,10 +11,9 @@ namespace UberEatsBackend.Middleware
             {
                 options.AddPolicy("AllowVueApp", builder =>
                 {
-                    builder.WithOrigins("http://localhost:5173") // URL de desarrollo de Vue
-                           .AllowAnyMethod()
-                           .AllowAnyHeader()
-                           .AllowCredentials();
+                    builder.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader();
                 });
                 
                 options.AddPolicy("AllowAll", builder =>
@@ -24,6 +23,7 @@ namespace UberEatsBackend.Middleware
                            .AllowAnyHeader();
                 });
             });
+
 
             return services;
         }
