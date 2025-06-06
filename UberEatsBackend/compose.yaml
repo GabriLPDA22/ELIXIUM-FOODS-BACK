@@ -1,0 +1,20 @@
+services:
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ubereats_db}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-ubereats_db}", "-U", "${POSTGRES_USER:-postgres}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"  # Puerto local 5432
+
+volumes:
+  database_data:
