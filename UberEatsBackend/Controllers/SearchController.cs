@@ -88,10 +88,10 @@ namespace UberEatsBackend.Controllers
             // Placeholder: Implement actual logic to retrieve popular searches
             var popularSearches = new List<string> {
                 "Pizza",
-                "Burgers",
+                "Hamburguesas",
                 "Sushi",
-                "Salads",
-                "Dessert"
+                "Ensaladas",
+                "Postres"
             };
             await Task.CompletedTask;
 
