@@ -1,8 +1,8 @@
 # 🚀 UberEatsBackend API
 
 <div align="center">
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
-  <img src="https://img.shields.io/badge/EF_Core-8.0-00C58E?style=for-the-badge" alt="EF Core" />
+  <img src="https://img.shields.io/badge/.NET-9.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 9" />
+  <img src="https://img.shields.io/badge/EF_Core-9.0-00C58E?style=for-the-badge" alt="EF Core" />
   <img src="https://img.shields.io/badge/PostgreSQL-AWS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white" alt="JWT" />
   <img src="https://img.shields.io/badge/REST-API-FF6C37?style=for-the-badge&logo=swagger&logoColor=white" alt="REST API" />
@@ -12,7 +12,7 @@
   <b>Potente backend para una plataforma de delivery de comida inspirada en UberEats | TFG Proyecto</b>
 </p>
 
-Este proyecto implementa una API robusta y escalable para una plataforma de entrega de comida, construida con tecnología .NET 8 y siguiendo los patrones de arquitectura modernos. Se integra con un frontend creado con Vue 3, TypeScript y Tailwind CSS para ofrecer una experiencia de usuario fluida y responsive.
+Este proyecto implementa una API robusta y escalable para una plataforma de entrega de comida, construida con tecnología .NET 9 y siguiendo los patrones de arquitectura modernos. Se integra con un frontend creado con Vue 3, TypeScript y Tailwind CSS para ofrecer una experiencia de usuario fluida y responsive.
 
 ## ✨ Características Principales
 
@@ -62,7 +62,7 @@ UberEatsBackend/
 
 ### Requisitos Previos
 
-- [.NET SDK 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) o superior
+- [.NET SDK 9.0](https://dotnet.microsoft.com/download/dotnet/9.0) o superior
 - Acceso a PostgreSQL (local o en AWS)
 - IDE recomendado: Visual Studio 2022/VS Code/JetBrains Rider
 
@@ -96,50 +96,12 @@ dotnet ef database update
 dotnet run
 ```
 
-La API estará disponible en `https://localhost:7264/api` y Swagger en `https://localhost:7264/swagger`
+La API estará disponible en `https://api.elixiumfoods/api` y Swagger en `https://localhost:5290/swagger`
 
 ## 📊 Modelo de Datos
 
-<div align="center">
-  <pre>
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│    Users    │     │  Restaurants │     │   Menus     │
-├─────────────┤     ├──────────────┤     ├─────────────┤
-│ Id          │     │ Id           │     │ Id          │
-│ Email       │     │ Name         │     │ Name        │
-│ PasswordHash│     │ Description  │     │ Description │
-│ FirstName   │     │ LogoUrl      │     │ RestaurantId│
-│ LastName    │◄────┤ UserId       │◄────┤             │
-│ PhoneNumber │     │ AddressId    │     │             │
-│ Role        │     │ IsOpen       │     │             │
-└─────────────┘     └──────────────┘     └─────┬───────┘
-       ▲                    ▲                   │
-       │                    │                   │
-       │                    │                   ▼
-┌─────────────┐     ┌──────┴───────┐     ┌─────────────┐
-│  Addresses  │     │    Orders    │     │  Categories │
-├─────────────┤     ├──────────────┤     ├─────────────┤
-│ Id          │     │ Id           │     │ Id          │
-│ Street      │     │ UserId       │     │ Name        │
-│ City        │     │ RestaurantId │     │ Description │
-│ State       │◄────┤ AddressId    │     │ MenuId      │
-│ ZipCode     │     │ Status       │     │             │
-│ UserId      │     │ Total        │     │             │
-└─────────────┘     └──────┬───────┘     └─────┬───────┘
-                           │                   │
-                           ▼                   ▼
-                    ┌──────────────┐     ┌─────────────┐
-                    │  OrderItems  │     │  Products   │
-                    ├──────────────┤     ├─────────────┤
-                    │ Id           │     │ Id          │
-                    │ OrderId      │◄────┤ Name        │
-                    │ ProductId    │     │ Description │
-                    │ Quantity     │     │ Price       │
-                    │ UnitPrice    │     │ ImageUrl    │
-                    │              │     │ CategoryId  │
-                    └──────────────┘     └─────────────┘
-  </pre>
-</div>
+![image](https://github.com/user-attachments/assets/b4434355-c2d8-4655-a93c-4e8eb05ffe3d)
+
 
 ## 🔒 Autenticación y Autorización
 
