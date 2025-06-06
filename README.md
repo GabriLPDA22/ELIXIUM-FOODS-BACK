@@ -1,248 +1,258 @@
-# 🚀 UberEatsBackend API
+# 🚀 Setup del Entorno Local - UberEatsBackend
 
-<div align="center">
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
-  <img src="https://img.shields.io/badge/EF_Core-8.0-00C58E?style=for-the-badge" alt="EF Core" />
-  <img src="https://img.shields.io/badge/PostgreSQL-AWS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white" alt="JWT" />
-  <img src="https://img.shields.io/badge/REST-API-FF6C37?style=for-the-badge&logo=swagger&logoColor=white" alt="REST API" />
-</div>
+## 📋 Requisitos Previos
 
-<p align="center">
-  <b>Potente backend para una plataforma de delivery de comida inspirada en UberEats | TFG Proyecto</b>
-</p>
+Antes de empezar, asegúrate de tener instalado:
 
-Este proyecto implementa una API robusta y escalable para una plataforma de entrega de comida, construida con tecnología .NET 8 y siguiendo los patrones de arquitectura modernos. Se integra con un frontend creado con Vue 3, TypeScript y Tailwind CSS para ofrecer una experiencia de usuario fluida y responsive.
+- [.NET SDK 9.0](https://dotnet.microsoft.com/download/dotnet/9.0) o superior
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Git](https://git-scm.com/)
+- IDE recomendado: Visual Studio 2022, VS Code o JetBrains Rider
 
-## ✨ Características Principales
+## 🛠️ Configuración Paso a Paso
 
-- **Autenticación Segura**: Sistema JWT con roles y permisos granulares
-- **Gestión de Restaurantes**: Catálogo completo con menús, categorías y productos
-- **Procesamiento de Pedidos**: Flujo completo desde creación hasta entrega
-- **Integración de Pagos**: Preparado para conectar con pasarelas de pago
-- **Diseño Mobile-First**: API optimizada para aplicaciones móviles
-- **Base de Datos en AWS**: PostgreSQL alojado en la nube para alta disponibilidad
-- **Arquitectura Avanzada**: Patrón repositorio y separación de responsabilidades
-- **Seguridad Robusta**: Protección contra vulnerabilidades comunes (XSS, CSRF, inyección SQL)
-
-## 🏗️ Arquitectura
-
-```
-UberEatsBackend/
-├── 🎮 Controllers/       # Endpoints de la API REST
-├── 📦 Models/            # Entidades del dominio
-├── 📋 DTOs/              # Objetos de transferencia de datos
-├── ⚙️ Services/          # Lógica de negocio
-├── 🗃️ Repositories/      # Capa de acceso a datos
-├── 💾 Data/              # Contexto y configuraciones de BD
-├── 🔌 Middleware/        # Componentes de middleware personalizados
-├── 🛠️ Utils/             # Utilidades y helpers
-└── 📝 .env               # Variables de entorno (desarrollo local)
-```
-
-## 🔧 Stack Tecnológico
-
-**Backend:**
-- **ASP.NET Core 8**: Marco de trabajo moderno para APIs de alto rendimiento
-- **Entity Framework Core**: ORM para operaciones de base de datos
-- **PostgreSQL**: Base de datos robusta alojada en AWS
-- **JWT Authentication**: Mecanismo seguro de autenticación basado en tokens
-- **Swagger/OpenAPI**: Documentación interactiva de la API
-- **CORS configurado**: Integración segura con el frontend
-- **Manejo de errores centralizado**: Respuestas consistentes en toda la API
-- **Variables de entorno**: Configuración segura entre entornos
-
-**Frontend asociado:**
-- Vue 3 (Composition API)
-- TypeScript
-- Tailwind CSS
-- Metodología BEM para CSS
-
-## 🚦 Cómo Empezar
-
-### Requisitos Previos
-
-- [.NET SDK 8.0](https://dotnet.microsoft.com/download/dotnet/8.0) o superior
-- Acceso a PostgreSQL (local o en AWS)
-- IDE recomendado: Visual Studio 2022/VS Code/JetBrains Rider
-
-### Configuración Inicial
-
-1. **Clonar el repositorio**
+### 1. 📥 Clonar el Repositorio
 
 ```bash
 git clone https://github.com/tuusuario/UberEatsBackend.git
 cd UberEatsBackend
 ```
 
-2. **Configurar variables de entorno**
+### 2. 🐳 Levantar la Base de Datos con Docker
 
-Copia `.env.example` a `.env` y ajusta los valores:
+Primero, asegúrate de que Docker Desktop esté ejecutándose, luego ejecuta:
 
 ```bash
-cp .env.example .env
-# Edita el archivo .env con tus credenciales y configuración
+# Crear y levantar el contenedor de PostgreSQL
+docker run --name ubereats-postgres \
+  -e POSTGRES_DB=ubereats_db \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password123 \
+  -p 5432:5432 \
+  -d postgres:15
 ```
 
-3. **Aplicar migraciones de base de datos**
+**Alternativamente, puedes usar docker-compose** (recomendado):
+
+Crea un archivo `docker-compose.yml` en la raíz del proyecto:
+
+```yaml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: ubereats-postgres
+    environment:
+      POSTGRES_DB: ubereats_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Admin123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+```
+
+Luego ejecuta:
+
+```bash
+docker-compose up -d
+```
+
+### 3. ⚙️ Configurar Variables de Entorno
+
+Crea un archivo `.env` en la raíz del proyecto con la siguiente configuración:
+
+```env
+# Database Configuration
+DB_CONNECTION_STRING=Host=localhost;Port=5432;Database=ubereats_db;Username=postgres;Password=Admin123!
+
+# JWT Configuration
+JWT_SECRET_KEY=tu-clave-secreta-muy-larga-y-segura-aqui-minimo-32-caracteres
+JWT_ISSUER=UberEatsBackend
+JWT_AUDIENCE=UberEatsApp
+JWT_EXPIRATION_MINUTES=60
+
+# Application Configuration
+ASPNETCORE_ENVIRONMENT=Development
+ASPNETCORE_URLS=http://+:8080
+
+# CORS Configuration (para desarrollo local)
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+### 4. 📦 Restaurar Dependencias
+
+```bash
+cd UberEatsBackend
+dotnet restore
+```
+
+### 5. 🗄️ Configurar Entity Framework y Migraciones
+
+#### a) Verificar que EF Tools esté instalado:
+
+```bash
+dotnet tool install --global dotnet-ef
+# O si ya está instalado, actualizarlo:
+dotnet tool update --global dotnet-ef
+```
+
+#### b) Crear la primera migración (si no existe):
+
+```bash
+dotnet ef migrations add InitialCreate
+```
+
+#### c) Aplicar las migraciones a la base de datos:
 
 ```bash
 dotnet ef database update
 ```
 
-4. **Ejecutar la aplicación**
+### 6. 🚀 Ejecutar la Aplicación
 
 ```bash
 dotnet run
 ```
 
-La API estará disponible en `https://localhost:7264/api` y Swagger en `https://localhost:7264/swagger`
+O en modo desarrollo con hot reload:
 
-## 📊 Modelo de Datos
-
-<div align="center">
-  <pre>
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│    Users    │     │  Restaurants │     │   Menus     │
-├─────────────┤     ├──────────────┤     ├─────────────┤
-│ Id          │     │ Id           │     │ Id          │
-│ Email       │     │ Name         │     │ Name        │
-│ PasswordHash│     │ Description  │     │ Description │
-│ FirstName   │     │ LogoUrl      │     │ RestaurantId│
-│ LastName    │◄────┤ UserId       │◄────┤             │
-│ PhoneNumber │     │ AddressId    │     │             │
-│ Role        │     │ IsOpen       │     │             │
-└─────────────┘     └──────────────┘     └─────┬───────┘
-       ▲                    ▲                   │
-       │                    │                   │
-       │                    │                   ▼
-┌─────────────┐     ┌──────┴───────┐     ┌─────────────┐
-│  Addresses  │     │    Orders    │     │  Categories │
-├─────────────┤     ├──────────────┤     ├─────────────┤
-│ Id          │     │ Id           │     │ Id          │
-│ Street      │     │ UserId       │     │ Name        │
-│ City        │     │ RestaurantId │     │ Description │
-│ State       │◄────┤ AddressId    │     │ MenuId      │
-│ ZipCode     │     │ Status       │     │             │
-│ UserId      │     │ Total        │     │             │
-└─────────────┘     └──────┬───────┘     └─────┬───────┘
-                           │                   │
-                           ▼                   ▼
-                    ┌──────────────┐     ┌─────────────┐
-                    │  OrderItems  │     │  Products   │
-                    ├──────────────┤     ├─────────────┤
-                    │ Id           │     │ Id          │
-                    │ OrderId      │◄────┤ Name        │
-                    │ ProductId    │     │ Description │
-                    │ Quantity     │     │ Price       │
-                    │ UnitPrice    │     │ ImageUrl    │
-                    │              │     │ CategoryId  │
-                    └──────────────┘     └─────────────┘
-  </pre>
-</div>
-
-## 🔒 Autenticación y Autorización
-
-El sistema implementa autenticación JWT completa:
-
-1. **Registro**: `POST /api/Auth/register`
-   ```json
-   {
-     "email": "usuario@example.com",
-     "password": "Contraseña123!",
-     "firstName": "Nombre",
-     "lastName": "Apellido",
-     "phoneNumber": "612345678"
-   }
-   ```
-
-2. **Login**: `POST /api/Auth/login`
-   ```json
-   {
-     "email": "usuario@example.com",
-     "password": "Contraseña123!"
-   }
-   ```
-
-3. El servidor devuelve un token JWT que debe incluirse en el encabezado `Authorization: Bearer {token}` para acceder a endpoints protegidos.
-
-## 📱 Ejemplos de Uso de la API
-
-### Crear un nuevo restaurante
-```http
-POST /api/Restaurants
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-  "name": "Burger Deluxe",
-  "description": "Las mejores hamburguesas de la ciudad",
-  "logoUrl": "https://example.com/logo.png",
-  "isOpen": true,
-  "deliveryFee": 2.50,
-  "estimatedDeliveryTime": 30,
-  "address": {
-    "street": "Calle Principal 123",
-    "city": "Madrid",
-    "state": "Madrid",
-    "zipCode": "28001"
-  }
-}
+```bash
+dotnet watch run
 ```
 
-### Realizar un pedido
-```http
-POST /api/Orders
-Content-Type: application/json
-Authorization: Bearer {token}
+### 7. ✅ Verificar que Todo Funciona
 
-{
-  "restaurantId": 1,
-  "deliveryAddressId": 3,
-  "items": [
-    {
-      "productId": 5,
-      "quantity": 2
-    },
-    {
-      "productId": 8,
-      "quantity": 1
-    }
-  ],
-  "paymentMethod": "card"
-}
+La aplicación debería estar ejecutándose en:
+- **API**: http://localhost:8080/api
+- **Swagger UI**: http://localhost:8080/swagger
+
+## 🔧 Comandos Útiles para el Desarrollo
+
+### Base de Datos y Migraciones
+
+```bash
+# Crear una nueva migración
+dotnet ef migrations add NombreMigracion
+
+# Aplicar migraciones pendientes
+dotnet ef database update
+
+# Revertir a una migración específica
+dotnet ef database update NombreMigracionAnterior
+
+# Eliminar la última migración (solo si no se ha aplicado)
+dotnet ef migrations remove
+
+# Ver el estado de las migraciones
+dotnet ef migrations list
 ```
 
-## 🚢 Despliegue
+### Docker
 
-El backend está diseñado para ser desplegado en:
-- Contenedores Docker
-- AWS Elastic Beanstalk
-- Azure App Service
-- Kubernetes
+```bash
+# Ver contenedores en ejecución
+docker ps
 
-## 📋 Mejoras Futuras
+# Parar el contenedor de PostgreSQL
+docker stop ubereats-postgres
 
-- Implementación de notificaciones en tiempo real con SignalR
-- Integración con servicios de mapas para seguimiento de entregas
-- Sistema de calificación y reseñas
-- Optimización de consultas para mayor rendimiento
-- Implementación de caché distribuida
+# Iniciar el contenedor de PostgreSQL
+docker start ubereats-postgres
 
-## 📄 Licencia
+# Ver logs del contenedor
+docker logs ubereats-postgres
 
-Este proyecto forma parte de un Trabajo de Fin de Grado (TFG) y está sujeto a las directrices académicas correspondientes.
+# Conectarse a la base de datos desde la línea de comandos
+docker exec -it ubereats-postgres psql -U postgres -d ubereats_db
+```
+
+### Desarrollo
+
+```bash
+# Ejecutar con hot reload
+dotnet watch run
+
+# Limpiar y rebuilder
+dotnet clean && dotnet build
+
+# Ejecutar tests (si existen)
+dotnet test
+```
+
+## 🐛 Solución de Problemas Comunes
+
+### Error de Conexión a la Base de Datos
+
+1. Verifica que Docker Desktop esté ejecutándose
+2. Confirma que el contenedor de PostgreSQL esté running: `docker ps`
+3. Verifica la cadena de conexión en tu archivo `.env`
+
+### Error en las Migraciones
+
+```bash
+# Si las migraciones fallan, intenta:
+dotnet ef database drop --force
+dotnet ef database update
+```
+
+### Puerto 5432 ya en uso
+
+```bash
+# Cambiar el puerto en docker-compose.yml o en el comando docker run
+# Por ejemplo, usar el puerto 5433:
+-p 5433:5432
+# Y actualizar la cadena de conexión: Port=5433
+```
+
+### Problemas de CORS
+
+Asegúrate de que las URLs en `CORS_ORIGINS` coincidan con la URL de tu frontend.
+
+## 📱 Probar la API
+
+Una vez que la aplicación esté ejecutándose, puedes:
+
+1. **Usar Swagger UI**: Ve a http://localhost:8080/swagger
+2. **Usar Postman/Insomnia**: Importa la colección de endpoints
+3. **cURL ejemplo**:
+
+```bash
+# Registrar un usuario
+curl -X POST "http://localhost:8080/api/Auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "Test123!",
+    "firstName": "Test",
+    "lastName": "User",
+    "phoneNumber": "612345678"
+  }'
+```
+
+## 🔄 Workflow de Desarrollo Diario
+
+1. **Iniciar Docker Desktop**
+2. **Levantar la base de datos**: `docker start ubereats-postgres` (o `docker-compose up -d`)
+3. **Aplicar migraciones nuevas** (si las hay): `dotnet ef database update`
+4. **Ejecutar la aplicación**: `dotnet watch run`
+5. **Desarrollar** 🎉
+
+## 📊 Datos de Prueba (Seed Data)
+
+Para poblar la base de datos con datos de prueba, puedes ejecutar:
+
+```bash
+# Si tienes configurado un seeder
+dotnet run --seed
+```
+
+O crear manualmente algunos registros usando Swagger UI o Postman.
 
 ---
 
-<div align="center">
-  <b>Desarrollado con ❤️ por:</b><br>
-  <b>Francisco Villa</b>:
-  <a href="https://github.com/Franvilla03">GitHub</a> •
-  <a href="https://www.linkedin.com/in/francisco-villa-cabero-640734239/">LinkedIn</a>
-  <br>
-  <b>Gabriel Saiz</b>:
-  <a href="mailto:gsaiz.bajo@gmail.com">Email</a> •
-  <a href="https://github.com/GabriLPDA22">GitHub</a> •
-  <a href="https://www.linkedin.com/in/gabriel-saiz-de-la-maza-bajo-140370184/">LinkedIn</a>
-</div>
+¡Con estos pasos deberías tener tu entorno de desarrollo local completamente funcional! 🚀
