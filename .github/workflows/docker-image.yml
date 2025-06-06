@@ -61,7 +61,7 @@ jobs:
 
     - name: Replace image tag in deployment
       run: |
-        IMAGE_TAG=$(echo "${{ steps.docker_meta.outputs.tags }}" | cut -d',' -f1)
+        IMAGE_TAG=$(echo "${{ steps.docker_meta.outputs.tags }}" | grep -o 'franvilla/back:[^,]*')
         sed "s|__IMAGE_TAG__|$IMAGE_TAG|" manifests/elixium-api-deployment.yml > manifests/tmp-deployment.yml
 
     - name: Deploy to EKS
