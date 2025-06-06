@@ -133,7 +133,7 @@ namespace UberEatsBackend.Utils
           .ForMember(dest => dest.ProductDescription, opt => opt.MapFrom(src => src.Product != null ? src.Product.Description : null))
           .ForMember(dest => dest.ProductImageUrl, opt => opt.MapFrom(src => src.Product != null ? src.Product.ImageUrl : null))
           .ForMember(dest => dest.BasePrice, opt => opt.MapFrom(src => src.Product != null ? src.Product.BasePrice : 0));
-
+ 
       CreateMap<CreateRestaurantProductDto, RestaurantProduct>();
       CreateMap<UpdateRestaurantProductDto, RestaurantProduct>();
 
