@@ -49,3 +49,14 @@ spec:
           env:
             - name: TZ
               value: "Europe/Madrid"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/appsettings.json
+              subPath: appsettings.json
+            - name: config-volume
+              mountPath: /app/appsettings.Development.json
+              subPath: appsettings.Development.json
+      volumes:
+        - name: config-volume
+          secret:
+            secretName: elixium-appsettings
